@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Live
+{% endblock %}
+
+{% block content %}
+
+<div class="container my-3">
+    <div class="row justify-content-center ">
+        <div class="col-md-9 bg-dark rounded">
+            <video id="video" autoplay>
+
+            </video>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const videoElement = document.getElementById('video');
+
+        // Create a UDP socket
+        const socket = new RTCPeerConnection();
+        console.log(socket);
+
+        // Handle incoming data
+        socket.ondatachannel = event => {
+            const dataChannel = event.channel;
+
+            dataChannel.onmessage = event => {
+                const frameData = event.data;
+                const blob = new Blob([frameData], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+
+                // Update video element with new frame
+                videoElement.src = url;
+            };
+        };
+
+        // Create a data channel to handle incoming video frames
+        const dataChannel = socket.createDataChannel('videoStream');
+
+        // Set up data channel
+        dataChannel.onopen = () => {
+            console.log('Data channel opened');
+        };
+
+        dataChannel.onclose = () => {
+            console.log('Data channel closed');
+        };
+
+        // Establish a connection
+        socket.createOffer().then(offer => {
+            return socket.setLocalDescription(offer);
+        }).then(() => {
+            // Send the offer to the server
+        }).catch(error => {
+            console.error('Error:', error);
+        });
+    });
+
+</script>
+{% endblock content %}

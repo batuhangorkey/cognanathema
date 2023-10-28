@@ -1,0 +1,42 @@
+{% extends 'base_view.html' %}
+
+{% block view_content %}
+
+<div class="container">
+    <table class="table table-bordered table-dark">
+        <thead>
+            <tr>
+                <th scope="col"></th>
+                <th scope="col">Date</th>
+                <th scope="col">Name</th>
+                <th scope="col">Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for det in detections %}
+
+            <tr>
+                <td>
+                    {{ loop.index }}
+                </td>
+                <td>
+                    {{ det.get_timestamp() }}
+                </td>
+                <td>
+                    {{ det.get_identity() }}
+                </td>
+                <td>
+                    <a href="{{ url_for('inspect', id=det.id ) }}">
+                        View Details
+                    </a>
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+    </table>
+</div>
+
+
+{% endblock view_content %}

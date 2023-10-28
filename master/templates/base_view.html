@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div id="outerShell" class="container my-3">
+    <div class="row justify-content-center ">
+        <div class="col-md-9 bg-dark rounded">
+            <ul class="nav nav-pills nav-fill nav-justified mt-2">
+                <li class="nav-item">
+                    <a class="nav-link 
+                    {% if session.get('view_mode', 'table') == 'table' %} 
+                    active 
+                    {% endif %} 
+                    text-light 
+                    py-1" href="/?v=t">
+                        View as Table
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link
+                     {% if session.get('view_mode', 'table') == 'special' %} 
+                     active 
+                     {% endif %} 
+                     text-light 
+                     py-1" href="/?v=s">
+                        View Special
+                    </a>
+                </li>
+            </ul>
+            <hr class="bg-light my-2">
+
+            {% block view_content %}
+
+            {% endblock view_content %}
+
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

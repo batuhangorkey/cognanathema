@@ -1,0 +1,29 @@
+{% extends 'base_view.html' %}
+
+{% block view_content %}
+
+<div class="container my-2">
+  <div class="row text-center g-2" id="cardContainer">
+
+    {% for det in detections %}
+
+    <div class="col-4">
+      <div class="card mb-4 text-bg-dark border-light">
+        <a href="{{ url_for('inspect', id=det.id ) }}">
+          <img src="{{ url_for('view_upload', filename=det.filepath ) }}"
+            class="card-img-top">
+        </a>
+        <div class="card-body text-start">
+          <h5 class="card-title">
+            {{ det.get_identity() }}
+          </h5>
+          <p class="card-text"><small>{{ det.get_timestamp() }}</small></p>
+        </div>
+      </div>
+    </div>
+
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock view_content %}

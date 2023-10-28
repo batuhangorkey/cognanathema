@@ -1,0 +1,83 @@
+{% extends 'base_form.html' %}
+
+{% block title %}
+Sign up
+{% endblock %}
+
+{% block form_content %}
+
+<h3 class="mb-4 pb-md-0">
+    Sign up
+</h3>
+<hr class="bg-light">
+
+<form method="POST" action="/signup" id="signupForm">
+    <div class="mb-3 row">
+        <label for="username" class="col-4 col-form-label">
+            Username
+        </label>
+        <div class="col-8">
+            <input type="text" class="form-control" name="username" id="username">
+        </div>
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="mail">
+            Mail
+        </label>
+        <div class="col-8">
+            <input type="text" class="form-control" id="mail" name="mail" required>
+
+        </div>
+
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="signupPassword">Password</label>
+        <div class="col-8">
+            <input type="password" class="form-control" id="signupPassword"
+                name="password" required>
+            <div class="invalid-feedback">
+                Your password must be 8-20 characters long,
+                contain at least one uppercase letter,
+                lowercase letter, number and special character.
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="authkey">Auth Key</label>
+
+        <div class="col-8">
+            <input type="password" class="form-control" id="authkey" name="authkey"
+                required>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2">
+        <button type="submit" id="submitBtn" class="btn btn-primary">
+            Sign Up
+        </button>
+    </div>
+
+    {% if context %}
+
+    {% if context.get("ERROR") and context["error"] == "USER_EXISTS" %}
+    <div class="alert alert-danger mt-4" role="alert">
+        An operator with this mail already exists.
+        Please check your mail or login instead.
+    </div>
+    {% elif context["ERROR"] == "AUTHKEY_NOT_FOUND"%}
+    <div class="alert alert-danger mt-4" role="alert">
+        Please check your authorization key.
+    </div>
+    {% elif context["ERROR"] == "SUCCESS" %}
+    <div class="alert alert-success mt-4" role="alert">
+        Sign up successful.
+    </div>
+    {% endif %}
+
+    {% endif %}
+</form>
+
+{% endblock %}

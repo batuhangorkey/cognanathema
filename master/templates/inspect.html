@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Inspect
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid my-3">
+    <div class="row justify-content-center">
+        <div class="col-8 col-md-5">
+            <div class="card bg-dark shadow-lg rounded-4">
+                <div class="card-body">
+                    <div class="row justify-content-center align-items-center g-2">
+                        <div class="col">
+                            <img class="img-fluid w-100"
+                                src="{{ url_for('view_upload', filename=det.filepath ) }}">
+                        </div>
+                    </div>
+
+                    <!--
+                        <div class="row justify-content-center align-items-center g-2 mt-1">
+                            <div class="col">
+                                <img class="img-fluid"
+                                    src="{{ url_for('view_upload', filename=det.filepath ) }}"
+                                    alt="Image 1">
+                            </div>
+                            <div class="col">
+                                <img class="img-fluid"
+                                    src="{{ url_for('view_upload', filename=det.filepath ) }}"
+                                    alt="Image 2">
+                            </div>
+                        </div>
+                    -->
+                </div>
+            </div>
+        </div>
+        <div class="col-8 col-md-4 mt-3 mt-md-0">
+            <div class="card bg-dark shadow-lg rounded-4">
+                <div class="card-body">
+                    <form method="POST"
+                        action="{{ request.url.replace('http', 'https') }}">
+                        <div class="form-group">
+                            <label for="name">Name:</label>
+                            {% if det.identity %}
+                            <input type="text" value="{{ det.identity.name }}"
+                                id="name" name="name" class="form-control">
+                            {% else %}
+                            <input type="text" value="" id="name" name="name"
+                                class="form-control">
+                            {% endif %}
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                    <div class="d-grid gap-2 my-2">
+                        <a class="btn btn-primary" role="button"
+                            href="{{ url_for('index') }}">
+                            Go Back
+                        </a>
+                    </div>
+                    <div class="d-grid gap-2 my-2">
+                        <button class="btn btn-danger" id="remove-id">
+                            Remove Associated Identity
+                        </button>
+                    </div>
+                    <div class="d-grid gap-2 my-2">
+                        <button class="btn btn-danger" id="remove-detection">
+                            Delete Detection
+                        </button>
+                    </div>
+                    <div class="alert alert-success d-none" role="alert" id="delsuc">
+                        Deletion successful.
+                    </div>
+                    <div class="alert alert-success d-none" role="alert">
+                        Update successful.
+                    </div>
+                    <div class="alert alert-danger d-none" id="errorDiv"
+                        role="alert">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+    errorDiv = document.getElementById("errorDiv");
+    console.log(errorDiv);
+
+    document.getElementById('remove-detection').addEventListener('click', function () {
+        fetch('{{ url_for("api.detection") }}', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ "id": "{{ det.id }}" })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    errorDiv.classList.remove("d-none");
+                    errorDiv.innerHTML = response.statusText;
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('POST request successful', data);
+                document.getElementById("delsuc").classList.remove("d-none");
+                setTimeout(function () {
+                    location.pathname = "/";
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error sending POST request:', error);
+            });
+    });
+
+    document.getElementById('remove-id').addEventListener('click', function () {
+        fetch('{{ url_for("api.identity") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(
+                {
+                    "id": "{{ det.id }}",
+                    "identity": ""
+                }
+            )
+        })
+            .then(response => {
+                if (!response.ok) {
+                    errorDiv.classList.remove("d-none");
+                    errorDiv.innerHTML = response.statusText;
+                    console.log(response.body);
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('POST request successful', data);
+                // document.getElementById("delsuc").classList.remove("d-none");
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error sending POST request:', error);
+            });
+    });
+</script>
+
+{% endblock %}

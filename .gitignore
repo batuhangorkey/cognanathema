@@ -1,0 +1,10 @@
+bootstrap
+*.jpg
+.VSCodeCounter/
+__pycache__
+.env
+migrations/
+master/static/favicon/site.webmanifest
+master/master.db
+.vscode/settings.json
+trainer/trainer.yml

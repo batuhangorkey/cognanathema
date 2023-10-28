@@ -1,0 +1,128 @@
+{% extends 'base_view.html' %}
+
+{% block view_content %}
+
+<div id="innerShell" class="container my-2">
+    <div id="loading"
+        class="d-flex justify-content-center align-items-center my-2 d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-none" role="alert" id="alert">
+        <strong>No detections in last 24 hours</strong>
+    </div>
+
+    <div class="col-6 col-sm-4 col-lg-3 d-none">
+        <div class="card mb-4 text-bg-dark border-light">
+            <a href="">
+                <img src="holder.js/300x300" class="card-img-top img-fluid">
+            </a>
+            <div class="card-body text-start">
+                <h5 class="card-title">
+                    Name
+                </h5>
+                <p class="card-text"><small>Date</small></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row text-center g-2" id="cardContainer">
+        <!--
+            {% for det in detections %}
+    
+    
+            {% endfor %}
+        -->
+    </div>
+</div>
+
+<script>
+    addEventListener("DOMContentLoaded", (event) => {
+        let loadingDiv = document.getElementById("loading");
+        
+        // could be done better
+        loadingDiv.classList.remove("d-none");
+        setTimeout(function() {
+            initial();
+            loadingDiv.classList.add("d-none");
+        }, 1000);
+    });
+
+    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+    var container = document.getElementById('cardContainer');
+    let alertDiv = document.getElementById("alert");
+
+    socket.on('update_table', function (data) {
+        var cardElement = newDetElement(data);
+        container.insertBefore(cardElement, container.firstChild);
+
+        console.log(data);
+        alertDiv.classList.add("d-none");
+    });
+
+    function newDetElement(det) {
+        var cardDivElement = document.createElement('div');
+        var classes = ['col-6', 'col-xs-6', 'col-sm-4', 'col-md-4', 'col-lg-3'];
+        classes.forEach(det => cardDivElement.classList.add(det))
+        // important
+        cardDivElement.id = `card-${det.id}`;
+        cardDivElement.innerHTML = `
+                <div class="card text-bg-dark border-light border-opacity-50">
+                    <a href="/inspect/${det.id}">
+                        <img src="/upload/${det.filepath}" class="card-img-top">
+                    </a>
+                    <div class="card-body text-start">
+                        <h6 class="card-title">
+                            ${det.name}
+                        </h5>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                ${det.timestamp}
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            `;
+        return cardDivElement;
+    }
+
+    function initial() {
+        fetch('{{ url_for("api.latest_data") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length < 1) {
+                    alertDiv.classList.remove("d-none");
+                    return;
+                }
+                data.forEach(det => {
+                    var cardElement = newDetElement(det);
+                    container.append(cardElement);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    // i dont use this anymore
+    function autoUpdate() {
+        fetch('/latest_data')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(det => {
+                    var exists = document.getElementById(`card-${det.id}`);
+
+                    if (!exists) {
+                        var cardElement = newDetElement(det);
+                        container.insertBefore(cardElement, container.firstChild);
+                    }
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+
+    // setInterval(autoUpdate, 5000);
+</script>
+
+{% endblock view_content %}

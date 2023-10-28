@@ -1,0 +1,114 @@
+{% extends 'base_form.html' %}
+
+{% block title %}
+Profile
+{% endblock %}
+
+{% block form_content %}
+
+<h2>
+    Hi, {{ user.username }}
+</h2>
+
+<hr class="bg-light">
+
+<form method="POST" action="/profile" id="signupForm">
+    <div class="mb-3 row">
+        <label for="username" class="col-4 col-form-label">
+            Username
+        </label>
+        <div class="col-8">
+            <input type="text" class="form-control" name="username"
+                value="{{user.username}}" id="username">
+        </div>
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="mail">
+            Mail
+        </label>
+        <div class="col-8">
+            <input type="text" class="form-control" id="mail" name="mail"
+                value="{{user.mail}}" required>
+        </div>
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="prevPassword">Old Password</label>
+        <div class="col-8">
+            <input type="password" class="form-control" id="prevPassword"
+                name="password" value="" required>
+        </div>
+    </div>
+
+    <div class="mb-3 row">
+        <label class="col-4 col-form-label" for="signupPassword">New Password</label>
+        <div class="col-8">
+            <input type="password" class="form-control" id="signupPassword"
+                name="newPassword" value="" required>
+            <div class="invalid-feedback">
+                Your password must be 8-20 characters long,
+                contain at least one uppercase letter,
+                lowercase letter, number and special character.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mb-2">
+        <button type="submit" id="submitBtn" class="btn btn-primary">
+            Update profile
+        </button>
+    </div>
+
+    <div class="d-grid gap-2 mb-2">
+        <button type="button" id="startCamBtn" class="btn btn-primary">
+            Add picture
+        </button>
+    </div>
+
+    <div class="d-grid gap-2 mb-2 d-none">
+        <button type="button" id="takePicBtn" class="btn btn-primary">
+            Take picture
+        </button>
+    </div>
+
+    <div class="d-grid gap-2 mb-2 d-none">
+        <button type="button" id="usePicBtn" class="btn btn-primary">
+            Register this face
+        </button>
+    </div>
+
+    <div class="d-grid justify-content-center">
+        <video class="img-fluid d-none"></video>
+        <img class="img-fluid d-none" id="img" />
+    </div>
+
+    <div id="loading" class="d-grid my-2 justify-content-center d-none">
+        <div class="spinner-border text-primary" role="status">
+
+        </div>
+    </div>
+
+    {% if context %}
+
+    {% if context["ERROR"] == "USER_EXISTS" %}
+    <div class="alert alert-warning mt-4" role="alert">
+        An operator with this mail or username already exists.
+        Please check your credentials.
+    </div>
+    {% elif context["ERROR"] == "PASSWORD_INCORRECT" %}
+    <div class="alert alert-warning mt-4" role="alert">
+        Please check if your old password correct.
+    </div>
+    {% elif context["ERROR"] == "SUCCESS" %}
+    <div class="alert alert-success mt-4" role="alert">
+        Updated profile.
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+</form>
+
+
+{% endblock form_content %}
