@@ -20,7 +20,7 @@ c_handler = logging.StreamHandler()
 file_handler = logging.FileHandler("master/webapp.log", mode="a")
 # handler.setLevel(logging.INFO)
 
-c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+c_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(c_format)
 c_handler.setFormatter(c_format)
 
@@ -73,9 +73,10 @@ from . import admin
 # user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 # security = Security(app, user_datastore)
 
+from master import extensions
 
 # INIT ROUTES
-from . import routes
+from master import routes
 
 
 if __name__ == "__main__":

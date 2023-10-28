@@ -24,13 +24,21 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 
 from flask_sqlalchemy.query import Query
+from flask_login import login_user, logout_user, login_required
+
+
 import magic
 
-from .app import app, db, recognizer, socketio
-from .models import Detection, Identity, User, check_authkey
+from master.app import app, db, recognizer, socketio
+from master.models import Detection, Identity, User, check_authkey
+from master.extensions import login_manager
 import logging
 
 logger = logging.getLogger("my_logger")
+
+#@login_manager.unauthorized
+#def unauthorized():
+#    pass
 
 
 @socketio.on("connect")
@@ -48,6 +56,7 @@ def before_request():
 
 
 @app.route("/")
+@login_required
 def index():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
@@ -159,8 +168,6 @@ def profile():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if session.get("logged_in"):
-        return redirect(url_for("index"))
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -168,12 +175,11 @@ def login():
         if user is None:
             return render_template("login.html", context={"ERROR": "USER_NOT_FOUND"})
         if user.check_password(password):
-            session["logged_in"] = True
-            session["user_id"] = user.id
+            login_user(user)
             return redirect(url_for("index"))
         else:
             return render_template("login.html", context={"ERROR": "PASSWORD"})
-    return render_template("login.html")
+    return render_template("user/login.html")
 
 
 @app.route("/logout")

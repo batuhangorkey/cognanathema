@@ -8,3 +8,5 @@ master/static/favicon/site.webmanifest
 master/master.db
 .vscode/settings.json
 trainer/trainer.yml
+hellow.txt
+master/webapp.log
