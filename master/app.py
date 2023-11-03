@@ -20,7 +20,7 @@ c_handler = logging.StreamHandler()
 file_handler = logging.FileHandler("master/webapp.log", mode="a")
 # handler.setLevel(logging.INFO)
 
-c_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+c_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(c_format)
 c_handler.setFormatter(c_format)
 
@@ -53,16 +53,6 @@ from .api import api
 
 app.register_blueprint(api, url_prefix="/api")
 
-# Face recognizer
-recognizer = cv2.face.LBPHFaceRecognizer.create()
-recognizer.read("trainer/trainer.yml")
-
-# Flask Admin
-from flask_admin import Admin
-
-admin_app = Admin(app, name="Admin Panel", template_mode="bootstrap4")
-
-from . import admin
 
 # FLASK-SECURITY
 # DID NOT WORK. I even installed flask security too package.
@@ -77,7 +67,7 @@ from master import extensions
 
 # INIT ROUTES
 from master import routes
-
+from master import cognaface
 
 if __name__ == "__main__":
     socketio.run(app, port=5000, debug=True, use_reloader=True, log_output=False)

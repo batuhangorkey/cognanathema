@@ -29,6 +29,7 @@
 
     <script src="{{ url_for('static', filename='index.js' ) }}"></script>
     <script src="{{ url_for('static', filename='holder.js') }}"></script>
+    
 </head>
 
 <body class="d-flex flex-column vh-100">
@@ -55,26 +56,14 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link disabled" href="{{ url_for('live') }}"
+                            <a class="nav-link" href="{{ url_for('live') }}"
                                 id="">
                                 Live
                             </a>
                         </li>
 
-                        {% if not session.get('logged_in') %}
-                        <li class="nav-item ">
-                            <a class="nav-link" href="/login">
-                                Login
-                            </a>
-                        </li>
-                        <li class="nav-item ">
-                            <a class="nav-link" href="/signup">
-                                Sign Up
-                            </a>
-                        </li>
-                        {% endif %}
+                        {% if current_user.is_authenticated %}
 
-                        {% if session.get('logged_in') %}
                         <li class="nav-item">
                             <a class="nav-link disabled" href="/identities">
                                 Identities
@@ -97,9 +86,23 @@
                         </li>
                         <li class="nav-item ms-md-3">
                             <a class="nav-link disabled">
-                                Signed in as {{ user.username }}
+                                Signed in as {{ current_user.username }}
                             </a>
                         </li>
+
+                        {% else %}
+
+                        <li class="nav-item ">
+                            <a class="nav-link" href="/login">
+                                Login
+                            </a>
+                        </li>
+                        <li class="nav-item ">
+                            <a class="nav-link" href="/signup">
+                                Sign Up
+                            </a>
+                        </li>
+
                         {% endif %}
 
                     </ul>

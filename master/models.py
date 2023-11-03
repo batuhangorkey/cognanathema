@@ -1,15 +1,17 @@
 import secrets
 from datetime import datetime, timedelta
 from enum import Enum
+from os import name
 
+import humanize
+from flask import request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, func
 from sqlalchemy.ext.hybrid import hybrid_method
+from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from master.app import db
-
-import humanize
 
 
 class AuthKeyTypeEnum(Enum):
@@ -34,6 +36,18 @@ class User(db.Model):
 
     def __repr__(self):
         return f"User('{self.username}', '{self.mail}')"
+
+    def is_active(self):
+        return True
+
+    def get_id(self):
+        return str(self.id)
+    
+    def is_authenticated(self):
+        password = request.form.get("password")
+        if password is None:
+            return False
+        return self.check_password(password)
 
     def set_password(self, password: str):
         if password is None:
@@ -104,6 +118,11 @@ class Identity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     data = db.Column(db.JSON, nullable=True)
+
+    def __init__(self, name, data) -> None:
+        super().__init__()
+        self.name = name
+        self.data = data
 
     def __repr__(self):
         return f"Identity('{self.name}', '{self.data}')"

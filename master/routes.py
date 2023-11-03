@@ -1,12 +1,14 @@
-from io import BytesIO
+import logging
 import os
 import secrets
-from datetime import datetime, timedelta
 import socket
+from datetime import datetime, timedelta
+from io import BytesIO
 from typing import List
 
 import flask
 import humanize
+import magic
 import numpy as np
 import requests
 from flask import (
@@ -19,31 +21,34 @@ from flask import (
     session,
     url_for,
 )
-from PIL import Image
-from werkzeug.utils import secure_filename
-from werkzeug.datastructures import FileStorage
-
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_sqlalchemy.query import Query
-from flask_login import login_user, logout_user, login_required
+from PIL import Image
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
-
-import magic
-
-from master.app import app, db, recognizer, socketio
-from master.models import Detection, Identity, User, check_authkey
+from master.app import app, db, socketio
 from master.extensions import login_manager
-import logging
+from master.models import Detection, Identity, User, check_authkey
 
 logger = logging.getLogger("my_logger")
 
-#@login_manager.unauthorized
-#def unauthorized():
+# @login_manager.unauthorized
+# def unauthorized():
 #    pass
 
 
 @socketio.on("connect")
 def handle_connect():
-    logger.info("Socketio client connected!")
+    client_id = request.sid  # type: ignore
+    logger.info("Socketio client connected with ID: %s" % client_id)
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    client_id = request.sid  # type: ignore
+    socketio.emit("stop_stream")
+    logger.info("Socketio client disconnected with ID: %s" % client_id)
 
 
 @app.before_request
@@ -58,11 +63,6 @@ def before_request():
 @app.route("/")
 @login_required
 def index():
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
-    user_id = session.get("user_id")
-    user: User = User.query.get_or_404(user_id)
-
     detections = Detection.get_recent_detections()
 
     if request.args.get("v") == "t":
@@ -71,24 +71,19 @@ def index():
         session["view_mode"] = "special"
 
     if session.get("view_mode", "table") == "table":
-        return render_template("index.html", user=user, detections=detections)
+        return render_template("index.html", detections=detections)
     else:
-        return render_template("mosaic.html", user=user, detections=detections)
+        return render_template("mosaic.html", detections=detections)
 
 
 @app.route("/inspect/<id>", methods=["GET", "POST"])
+@login_required
 def inspect(id):
-    # print(request.url.replace("http", "https"))
-
-    user_id = session.get("user_id")
-    if not user_id or not session.get("logged_in"):
-        return redirect(url_for("login"))
+    user: User = current_user
 
     det: Detection = Detection.query.get_or_404(id)
 
-    print(det.identity)
-    # print(det.identity.name)
-    user = User.query.get(user_id)
+    logger.info(det.identity)
 
     if request.method == "POST":
         name = request.form.get("name")
@@ -115,17 +110,15 @@ def inspect(id):
         db.session.commit()
         return redirect(url_for("inspect", id=id))
 
-    return render_template("inspect.html", user=user, det=det)
+    return render_template("inspect.html", det=det)
 
 
 @app.route("/profile", methods=["GET", "POST"])
+@login_required
 def profile():
-    user_id = session.get("user_id")
-    if not user_id or not session.get("logged_in"):
-        return redirect(url_for("index"))
+    user: User = current_user
 
     if request.method == "POST":
-        user = User.query.get_or_404(user_id)
         oldpassword = request.form.get("password")
         username = request.form.get("username")
         newpassword = request.form.get("newPassword")
@@ -162,31 +155,29 @@ def profile():
         db.session.commit()
         return render_template("profile.html", user=user, context={"ERROR": "SUCCESS"})
 
-    user: User = User.query.get_or_404(user_id)
-    return render_template("profile.html", user=user)
+    return render_template("user/profile.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form.get("username")
-        password = request.form.get("password")
         user = User.query.filter(User.username == username).first()
         if user is None:
-            return render_template("login.html", context={"ERROR": "USER_NOT_FOUND"})
-        if user.check_password(password):
-            login_user(user)
+            return render_template(
+                "user/login.html", context={"ERROR": "USER_NOT_FOUND"}
+            )
+        res = login_user(user)
+        if res:
             return redirect(url_for("index"))
         else:
-            return render_template("login.html", context={"ERROR": "PASSWORD"})
+            return render_template("user/login.html", context={"ERROR": "PASSWORD"})
     return render_template("user/login.html")
 
 
 @app.route("/logout")
 def logout():
-    if session.get("user_id"):
-        session.pop("user_id")
-    session["logged_in"] = False
+    logout_user()
     return redirect(url_for("index"))
 
 
@@ -204,118 +195,25 @@ def signup():
 
         user = User.query.filter(User.mail == mail).first()
         if user:
-            return render_template("signup.html", context={"ERROR": "USER_EXISTS"})
+            return render_template("user/signup.html", context={"ERROR": "USER_EXISTS"})
         p = request.form.get("password")
         k = request.form.get("authkey")
         new_user = User(username, mail, p)
         if check_authkey(k):
             db.session.add(new_user)
             db.session.commit()
-            return render_template("signup.html", context={"ERROR": "SUCCESS"})
+            return render_template("user/signup.html", context={"ERROR": "SUCCESS"})
         else:
             return render_template(
-                "signup.html", context={"ERROR": "AUTHKEY_NOT_FOUND"}
+                "user/signup.html", context={"ERROR": "AUTHKEY_NOT_FOUND"}
             )
 
-    return render_template("signup.html")
+    return render_template("user/signup.html")
 
 
 @app.route("/upload/<path:filename>", methods=["GET"])
 def view_upload(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-
-
-@app.route("/upload", methods=["POST"])
-def upload():
-    # TODO: ORDER AND GROUP THE SAME PEOPLE,
-    # OTHERWISE MAIN PAGE IS FILLED WITH THE SAME HUMAN
-    # TODO: MOVE THIS TO SOMEWHERE ELSE AND REWRITE, THIS CODE IS UGLY
-    print(request.remote_addr)
-
-    uploaded_file = request.files.get("file")
-    timestamp = request.form.get("timestamp")
-    face_detection_time = request.form.get("face_detection_time")
-
-    if not uploaded_file:
-        return jsonify("Missing file"), 400
-    if not allowed_file(uploaded_file.filename):
-        return jsonify("File type is not correct"), 400
-    # if not allowed_file_size(uploaded_file.filename):
-    #     return jsonify("File size is too big"), 400
-    if not timestamp:
-        return jsonify("Missing timestamp"), 400
-    if not face_detection_time and not isinstance(face_detection_time, int):
-        return jsonify("Error on face detection time"), 400
-    else:
-        face_detection_time = int(face_detection_time)
-    try:
-        timestamp = datetime.strptime(timestamp, "%a %b %d %H:%M:%S %Y")
-    except ValueError:
-        return jsonify("Timestamp not in correct format"), 400
-
-    server_delay = elapsed_time(timestamp)
-
-    sanitize_file(uploaded_file)
-
-    filename = secrets.token_urlsafe(32) + ".jpg"
-    path = os.path.join(app.root_path, "uploads", filename)
-
-    try:
-        uploaded_file.save(path)
-        PIL_img = Image.open(path).convert("L")
-    except Exception as e:
-        print(e)
-        if os.path.exists(path):
-            print(f"Removed {path}")
-            os.remove(path)
-        return jsonify(f"Error: {e}"), 400
-
-    img_numpy = np.array(PIL_img, "uint8")
-    id, confidence = recognizer.predict(img_numpy)
-    print(id, confidence)
-
-    face_recognition = elapsed_time(timestamp) - server_delay
-
-    new_det = Detection(timestamp=timestamp, filepath=filename)  # type: ignore
-
-    if confidence > 70:
-        # TODO: IDEA: weak identites
-        identity = Identity.query.get_or_404(id)
-        print(f"Weak identity: {identity}")
-    else:
-        # Identity found
-        # see if we detected this human in the last one minute
-        identity = Identity.query.get_or_404(id)
-        min_ago = datetime.utcnow() - timedelta(minutes=1)
-        past_detections = Detection.query.filter(
-            Detection.timestamp >= min_ago, Detection.identity == identity
-        )
-        if past_detections.count() > 0:
-            return jsonify("repetitive spam"), 400
-
-        logger.info(f"Found identity: {identity}")
-        new_det.identity_id = identity.id
-
-    db.session.add(new_det)
-    db.session.commit()
-
-    data = new_det.serialize()
-
-    # print(f"From node to end of recognition in us: {elapsed_time(timestamp)}")
-    # h = humanize.naturaldelta(elapsed, minimum_unit="milliseconds")
-    # print(h)
-
-    performance = {
-        "server_delay": server_delay.microseconds // 1000,
-        "face_detection_time": face_detection_time // 1000,
-        "face_recognition": face_recognition.microseconds // 1000,
-    }
-
-    logger.info(performance)
-
-    socketio.emit("update_table", data)
-
-    return jsonify(data), 200
 
 
 @app.route("/identity/<id>", methods=["GET"])
@@ -336,7 +234,8 @@ def identities():
 @app.route("/live", methods=["GET"])
 def live():
     # learn webrtc, this is still not implemented
-    return render_template("live.html", user=None)
+    
+    return render_template("live.html")
 
 
 @app.route("/log", methods=["GET"])
@@ -345,38 +244,7 @@ def log():
     return Response()
 
 
-def allowed_file(file) -> bool:
-    # DEPRECATED
-    k = "." in file
-    if not k:
-        return False
-    return file.rsplit(".", 1)[1].lower() == "jpg"
-
-
-def check_login(func):
-    user_id = session.get("user_id")
-    if not user_id or not session.get("logged_in"):
-        return redirect(url_for("index"))
-    user = User.query.get(user_id)
-    return user
-
-
 def trigger_update_table():
     # TODO: This method does nothing
     # socketio.emit("update_table", data)
     pass
-
-
-def elapsed_time(time: datetime) -> timedelta:
-    time_finished = datetime.utcnow() - time
-    elapsed = timedelta(seconds=time_finished.total_seconds())
-    return elapsed
-
-
-def sanitize_file(file: FileStorage):
-    mime = magic.from_buffer(file.stream.read(2048), mime=True)
-    print(mime)
-    file.stream.seek(0)
-    if mime.startswith("image"):
-        return True
-    return False
