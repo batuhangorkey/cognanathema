@@ -9,11 +9,70 @@ Live
 <div class="container my-3">
     <div class="row justify-content-center ">
         <div class="col-md-9 bg-dark rounded">
-            <div class="d-flex my-3 justify-content-center">
-                <video class="img-fluid d-none" id="video" width="640" height="480" autoplay muted>
-    
+            <div class="container mt-3">
+                <div class="row text-center g-2">
+                    <div class="col-6 bg-dark">
+                        <div
+                            class="card text-bg-dark border-light border-opacity-50">
+                            <img id="imgCam" src="holder.js/640x480"
+                                class="h-100 card-img-top img-fluid">
+                            <div class="card-body text-start">
+                                <p class="card-text my-0">
+                                    <small class="text-muted">
+                                        PiCamera
+                                    </small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 bg-dark">
+                        <div
+                            class="card text-bg-dark border-light border-opacity-50">
+                            <img id="imgThermal" src="holder.js/640x480"
+                                class="h-100 card-img-top img-fluid">
+                            <div class="card-body text-start">
+                                <p class="card-text my-0">
+                                    <small class="text-muted">
+                                        Thermal Camera
+                                    </small>
+                                </p>
+
+                                <table class="table d-none" id="thermalTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Min</th>
+                                            <th scope="col">Max</th>
+                                            <th scope="col">Mean</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td id="minDeg">
+                                                </th>
+                                            <td id="maxDeg"></td>
+                                            <td id="meanDeg"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="streamDiv" class="d-flex my-3 justify-content-center">
+                <video class="img-fluid d-none" id="video" width="640" height="480"
+                    autoplay muted>
                 </video>
-                <img class="img-fluid" id="img" />
+            </div>
+
+            <div id="loading"
+                class="d-flex justify-content-center align-items-center my-2 d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
             </div>
         </div>
     </div>

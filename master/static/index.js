@@ -1,5 +1,11 @@
 // Hi
 var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+console.log(socket);
+
+socket.on("connect", () => {
+    console.log("Connected with id: " + socket.id);
+
+});
 
 function refreshPage() {
     if (location.pathname == "/") {
@@ -58,7 +64,7 @@ function newDetElement(det) {
                 <div class="card-body text-start">
                     <h6 class="card-title">
                         ${det.name}
-                    </h5>
+                    </h6>
                     <p class="card-text">
                         <small class="text-muted">
                             ${det.timestamp}
@@ -72,6 +78,7 @@ function newDetElement(det) {
 
 function initial() {
     // test this
+    let alertDiv = document.getElementById("alert");
     fetch('/api/latest_data')
         .then(response => response.json())
         .then(data => {
@@ -119,20 +126,62 @@ addEventListener("DOMContentLoaded", (event) => {
     }
 
     if (location.pathname == "/live") {
+        var socketLive = io.connect(location.protocol
+            + '//' + document.domain
+            + ':' + location.port
+            + "/live");
+
         var video = document.getElementById("video");
-        var img = document.getElementById("img");
+        var imgThermal = document.getElementById("imgThermal");
+        var imgCam = document.getElementById("imgCam");
+        var streamDiv = document.getElementById("streamDiv");
+
+        var min = document.getElementById("minDeg");
+        var max = document.getElementById("maxDeg");
+        var mean = document.getElementById("meanDeg");
+
+        var thermalTable = document.getElementById("thermalTable");
 
         console.log("Live");
 
-        socket.emit("start_stream");
+        socketLive.emit("join_stream");
 
-        socket.on('recv_live_stream', function (data) {
-            console.log(data)
+        loadingDiv.classList.remove("d-none");
+
+        socketLive.on("connect", () => {
+            console.log("Connected with id: " + socket.id);
+        });
+
+        socketLive.on('message', function (data) {
+            console.log(data);
+            if (data == "Looking for streamer") {
+
+            }
+            if (data == "streaming") {
+                loadingDiv.classList.add("d-none");
+                thermalTable.classList.remove("d-none");
+                streamDiv.classList.remove("d-none");
+            }
+        });
+
+        socketLive.on('receive_cam_frame', function (data) {
+            console.log(data);
+            //const blob = new Blob([data.frame], { type: 'image/jpeg' });
+            //const url = URL.createObjectURL(blob);
+            imgCam.src = data.frame;
+        });
+
+        socketLive.on('receive_thermal_frame', function (data) {
+            console.log(data);
 
             //const blob = new Blob([data.frame], { type: 'image/jpeg' });
             //const url = URL.createObjectURL(blob);
 
-            img.src = data.frame;
+            imgThermal.src = data.frame;
+
+            min.innerHTML = data.min + "'C";
+            max.innerHTML = data.max + "'C";
+            mean.innerHTML = data.mean + "'C";
         });
     }
 
@@ -164,6 +213,7 @@ addEventListener("DOMContentLoaded", (event) => {
         let takePicBtn = document.getElementById('takePicBtn');
         let starCamBtn = document.getElementById('startCamBtn')
         let usePicBtn = document.getElementById("usePicBtn");
+        var alert = document.getElementById("alert");
 
 
         usePicBtn.addEventListener('click', function (event) {
@@ -222,10 +272,12 @@ addEventListener("DOMContentLoaded", (event) => {
             // ugly
             loadingDiv.classList.remove("d-none");
             divElem.classList.add("d-none");
+            alert.classList.add("d-none");
+
             // request access to the users camera
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(function (stream) {
-                    // video.classList.remove("d-none");
+                    video.classList.remove("d-none");
                     video.srcObject = stream;
                     video.play();
                     loadingDiv.classList.add("d-none");
@@ -233,7 +285,9 @@ addEventListener("DOMContentLoaded", (event) => {
                 .catch(function (error) {
                     loadingDiv.classList.add("d-none");
                     divElem.classList.remove("d-none");
-                    console.error('Error accessing the camera:', error);
+
+                    alert.classList.remove("d-none");
+                    alert.innerHTML = error;
                 });
         });
 
@@ -263,13 +317,19 @@ addEventListener("DOMContentLoaded", (event) => {
             })
                 .then(response => {
                     if (!response.ok) {
-                        usePicBtn.parentElement.classList.remove("d-none");
-
-                        return response.json().then((error) => console.log(error));
+                        return response.json().then(
+                            error => {
+                                alert.classList.remove("d-none");
+                                alert.innerHTML = error;
+                                console.log(error);
+                            });
                     }
                     response.json().then((data) => {
                         // server gave us pass, lez go
                         console.log('Response from server:', data);
+
+                        alert.classList.add("d-none");
+                        usePicBtn.parentElement.classList.remove("d-none");
 
                         img.src = data.face;
                         img.classList.remove("d-none");

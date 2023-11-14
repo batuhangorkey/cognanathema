@@ -27,7 +27,7 @@ from PIL import Image
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-from master.app import app, db, socketio
+from master.app import app, db
 from master.extensions import login_manager
 from master.models import Detection, Identity, User, check_authkey
 
@@ -36,19 +36,6 @@ logger = logging.getLogger("my_logger")
 # @login_manager.unauthorized
 # def unauthorized():
 #    pass
-
-
-@socketio.on("connect")
-def handle_connect():
-    client_id = request.sid  # type: ignore
-    logger.info("Socketio client connected with ID: %s" % client_id)
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    client_id = request.sid  # type: ignore
-    socketio.emit("stop_stream")
-    logger.info("Socketio client disconnected with ID: %s" % client_id)
 
 
 @app.before_request
@@ -136,7 +123,7 @@ def profile():
 
         if oldpassword is None or not user.check_password(oldpassword):
             return render_template(
-                "profile.html", user=user, context={"ERROR": "PASSWORD_INCORRECT"}
+                "profile.html", context={"ERROR": "PASSWORD_INCORRECT"}
             )
 
         user_e = None
@@ -146,14 +133,14 @@ def profile():
             user_e = User.query.filter(User.mail == mail).first()
         if user_e:
             return render_template(
-                "profile.html", user=user, context={"ERROR": "USER_EXISTS"}
+                "profile.html", context={"ERROR": "USER_EXISTS"}
             )
         user.username = username
         user.mail = mail
 
         user.set_password(newpassword)
         db.session.commit()
-        return render_template("profile.html", user=user, context={"ERROR": "SUCCESS"})
+        return render_template("profile.html", context={"ERROR": "SUCCESS"})
 
     return render_template("user/profile.html")
 
@@ -234,7 +221,7 @@ def identities():
 @app.route("/live", methods=["GET"])
 def live():
     # learn webrtc, this is still not implemented
-    
+
     return render_template("live.html")
 
 
@@ -242,9 +229,3 @@ def live():
 def log():
     # TODO: IMPLEMENT A LIVE LOG PAGE
     return Response()
-
-
-def trigger_update_table():
-    # TODO: This method does nothing
-    # socketio.emit("update_table", data)
-    pass

@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import Enum, unique
 from os import name
 
 import humanize
@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from master.app import db
 
 
-class AuthKeyTypeEnum(Enum):
+class JobTypeEnum(Enum):
     OPERATOR = "operator"
     SLAVE = "slave"
 
@@ -28,6 +28,7 @@ class User(db.Model):
     roles = db.relationship(
         "Role", secondary="roles_users", backref=db.backref("users", lazy="dynamic")
     )
+    identity = db.relationship("Identity", backref=db.backref("user", lazy=True))
 
     def __init__(self, username, mail, password) -> None:
         self.username = username
@@ -42,7 +43,7 @@ class User(db.Model):
 
     def get_id(self):
         return str(self.id)
-    
+
     def is_authenticated(self):
         password = request.form.get("password")
         if password is None:
@@ -74,10 +75,10 @@ class Role(db.Model):
 
 class Detection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    identity_id = db.Column(db.Integer, db.ForeignKey("identity.id"), nullable=True)
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
     filepath = db.Column(db.String(255), nullable=False)
 
+    identity_id = db.Column(db.Integer, db.ForeignKey("identity.id"), nullable=True)
     identity = db.relationship("Identity", backref=db.backref("detections", lazy=True))
 
     def __repr__(self):
@@ -119,6 +120,8 @@ class Identity(db.Model):
     name = db.Column(db.String(100), nullable=False)
     data = db.Column(db.JSON, nullable=True)
 
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, unique=True)
+
     def __init__(self, name, data) -> None:
         super().__init__()
         self.name = name
@@ -134,10 +137,10 @@ class AuthKey(db.Model):
     created_at = db.Column(
         db.DateTime, default=db.func.current_timestamp(), nullable=False
     )
-    type = db.Column(db.Enum(AuthKeyTypeEnum), nullable=False)
+    type = db.Column(db.Enum(JobTypeEnum), nullable=False)
     used = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, key: str, type: AuthKeyTypeEnum) -> None:
+    def __init__(self, key: str, type: JobTypeEnum) -> None:
         self.set_authkey(key)
         self.type = type
 
@@ -151,10 +154,10 @@ class AuthKey(db.Model):
         return check_password_hash(self.auth_key, authkey)
 
 
-def generate_authkey(type: AuthKeyTypeEnum):
-    if type == AuthKeyTypeEnum.OPERATOR:
+def generate_authkey(type: JobTypeEnum):
+    if type == JobTypeEnum.OPERATOR:
         authkey = secrets.token_urlsafe(4)
-    elif type == AuthKeyTypeEnum.SLAVE:
+    elif type == JobTypeEnum.SLAVE:
         authkey = secrets.token_urlsafe(16)
     else:
         raise NotImplementedError

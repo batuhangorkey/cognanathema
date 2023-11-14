@@ -10,3 +10,4 @@ master/master.db
 trainer/trainer.yml
 hellow.txt
 master/webapp.log
+master/static/holder.js

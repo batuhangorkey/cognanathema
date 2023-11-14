@@ -3,24 +3,22 @@ from flask import Flask
 import os
 import dotenv
 import cv2
+import logging
+import sys
 
 dotenv.load_dotenv("../.env")
 
 app = Flask(__name__)
 
 # LOGGING
-
-import logging
-import sys
-
 logger = logging.getLogger("my_logger")
 logger.setLevel(logging.INFO)
 
 c_handler = logging.StreamHandler()
-file_handler = logging.FileHandler("master/webapp.log", mode="a")
+file_handler = logging.FileHandler("master/webapp.log", mode="w")
 # handler.setLevel(logging.INFO)
 
-c_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+c_format = logging.Formatter("%(threadName)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(c_format)
 c_handler.setFormatter(c_format)
 
@@ -33,11 +31,6 @@ app.config[
 ] = f'sqlite:///{os.path.join(app.root_path, "master.db")}'
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
-
-# Socketio
-from flask_socketio import SocketIO
-
-socketio = SocketIO(app)
 
 # Database
 from flask_migrate import Migrate
@@ -70,4 +63,4 @@ from master import routes
 from master import cognaface
 
 if __name__ == "__main__":
-    socketio.run(app, port=5000, debug=True, use_reloader=True, log_output=False)
+    app.run(port=5000, debug=True)

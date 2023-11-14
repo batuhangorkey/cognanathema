@@ -2,7 +2,9 @@ import base64
 import os
 import secrets
 from datetime import datetime, timedelta
+from functools import wraps
 from io import BytesIO
+from shlex import join
 from time import time
 from typing import List
 
@@ -10,22 +12,22 @@ import magic
 import numpy as np
 from flask import Blueprint, abort, jsonify, request, session
 from flask_login import current_user, logout_user
-from flask_socketio import join_room
+from flask_socketio import SocketIO, join_room, send, rooms
 from flask_sqlalchemy.query import Query
-from h11 import Response
 from PIL import Image
-from sympy import timed
 from werkzeug.datastructures import FileStorage
 
 from master.api import api
-from master.app import app, db, logger, socketio
+from master.app import app, db, logger
 from master.cognaface import draw_face, get_face, recognizer
+from master.extensions import socketio
 from master.models import Detection, Identity, User
 
 MAX_FILE_SIZE = 16 * 1e3
 
 
 def check_json(func):
+    @wraps(func)
     def wrapper():
         data = request.json
         if not data:
@@ -36,6 +38,7 @@ def check_json(func):
 
 
 def check_id(func):
+    @wraps(func)
     def wrapper():
         data = request.json
         if not data:
@@ -50,6 +53,7 @@ def check_id(func):
 
 
 def check_sent_image(func):
+    @wraps(func)
     def wrapper():
         data = request.json
         if not data:
@@ -62,9 +66,33 @@ def check_sent_image(func):
     return wrapper
 
 
+@socketio.on("connect")
+def handle_connect():
+    client_id = request.sid  # type: ignore
+    logger.info("Socketio client connected with ID: %s" % client_id)
+
+
+@socketio.on("disconnect", namespace="/live")
+def handle_disconnect():
+    client_id = request.sid  # type: ignore
+    socketio.emit("stop_stream", {"client": client_id})
+    logger.info("Socketio client disconnected with ID: %s" % client_id)
+    logger.info("Socketio client rooms: %s" % rooms())
+
+
+@socketio.on("message")
+def handle_message(data):
+    logger.info(data)
+    if isinstance(data, dict) and data.get("job") == "slave":
+        logger.info("Joined room")
+        join_room("streamer_room")
+    
+    if data == "Started streaming":
+        socketio.send("streaming", to="viewer_room", namespace="/live")
+
+
 @socketio.on("video_data")
 def handle_video_data(data):
-    then = time()
     image_data = data["image_data"]
 
     image_bytes = base64.b64decode(image_data.split(",")[1])
@@ -77,23 +105,37 @@ def handle_video_data(data):
     image.save(stream, "jpeg")
     transformed_image = encode_image(stream.getvalue())
 
-    print(timedelta(seconds=(time() - then)).microseconds // 1000)
-
     socketio.emit("transformed_image", {"transformed_image": transformed_image})
 
 
-@socketio.on("start_stream")
-def handle_start_stream():
+@socketio.on("stream")
+def handle_stream():
     logger.info("Starting a live stream requested by client id: %s" % request.sid)
 
-    socketio.emit("start_stream")
+    # socketio.emit("start_stream", {"client": request.sid})
+
+
+@socketio.on("join_stream", namespace="/live")
+def handle_start_stream():
+    # TODO: ADD TOKEN VERIFICATION, ITS IMPORTANTTT!!
+    logger.info("Starting a live stream requested by client id: %s" % request.sid)
+    join_room("viewer_room", namespace="/live")
+    
+    socketio.send("Looking for streamer", to=request.sid)
+    socketio.emit("start_stream", {"client": request.sid}, to="streamer_room")
 
 
 @socketio.on("live_stream")
 def handle_live_stream(data):
-    data = encode_image(data)
+    encoded_frame = encode_image(data["frame"])
+    data["frame"] = encoded_frame
+    
+    if data["type"] == "thermal":
+        event = "receive_thermal_frame"
+    else:
+        event = "receive_cam_frame"
 
-    socketio.emit("recv_live_stream", {"frame": data})
+    socketio.emit(event, data, to="viewer_room", namespace="/live")
 
 
 @check_id
@@ -195,6 +237,8 @@ def register_face():
     identity = Identity.query.filter(Identity.name == user.username).first()
     if not identity:
         identity = Identity(name=user.username, data=data)
+
+    identity.user_id = user.id
 
     return jsonify({"result": "success"}), 200
 
