@@ -66,17 +66,53 @@ function newDetElement(det) {
                             ${det.timestamp}
                         </small>
                     </p>
-                    <button class="btn btn-danger" onclick="deleteCard('${det.id}')">
-                    Delete
+                    <div class="dropdown d-inline">
+                    <button class="btn btn-sm btn-primary dropdown-toggle"
+                        type="button" id="triggerId" data-bs-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                        Identity
                     </button>
-                    <button class="btn btn-danger" onclick="deleteCard('${det.id}')">
+                    <div class="dropdown-menu" aria-labelledby="triggerId">
+                        <button class="dropdown-item" href="#">
+                            True
+                        </button>
+                        <button class="dropdown-item" href="#">
+                            False
+                        </button>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm"
+                    onclick="deleteCard('${det.id}')">
                     Delete
-                    </button>
+                </button>
                 </div>
             </div>
         `;
     cardDivElement.dataset.cardId = det.id;
     return cardDivElement;
+}
+
+function deleteCard(cardId) {
+    fetch('/api/detection', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ "id": cardId })
+    }).then(response => {
+        if (!response.ok) {
+
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    }).then(data => {
+        const cardElement = document.getElementById(`card-${cardId}`);
+        if (cardElement) {
+            cardElement.remove();
+        }
+    }).catch(error => {
+        console.error('Error sending POST request:', error);
+    });
 }
 
 function uploadPhoto() {

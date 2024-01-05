@@ -43,6 +43,10 @@ db.init_app(app)
 
 migrate = Migrate(app, db)
 
+# flask db init
+# flask db migrate -m comment
+# flask db upgrade
+
 # FLASK-SECURITY
 # DID NOT WORK. I even installed flask security too package.
 # Probably my fault.. I will switch to using FLASK-LOGIN
@@ -52,13 +56,13 @@ migrate = Migrate(app, db)
 # user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 # security = Security(app, user_datastore)
 
-from master import extensions
 from master import cognaface
 cognaface.init()
 
 logger.info(cognaface.VECTOR_ARRAY.shape)
 logger.info(cognaface.ID_ARRAY)
 
+from master import extensions
 
 # INIT ROUTES
 from master import routes

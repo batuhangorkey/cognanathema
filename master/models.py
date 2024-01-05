@@ -8,10 +8,14 @@ from os import name
 import humanize
 from flask import request
 from flask_sqlalchemy import SQLAlchemy
+from PIL import Image
+import numpy as np
 from sqlalchemy import Column, ForeignKey, Integer, String, func
 from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import check_password_hash, generate_password_hash
+from master import cognaface
 
 from master.app import app, db
 
@@ -128,6 +132,43 @@ class Detection(db.Model):
             return "%.2f" % float(self.data.get("temps").get("scene_mean"))
         return None
 
+    @property
+    def cosine_distance(self):
+        if self.data.get("face_vector") is None:
+            image = Image.open(
+                os.path.join(app.config["UPLOAD_FOLDER"], self.filepath)
+            )
+            vec = cognaface.get_face_vector(image).tolist()
+            self.data["face_vector"] = vec
+            # what the fuck is this
+            # we force the alchemy to commit updates..
+            flag_modified(self, "data")
+            db.session.commit()
+        else:
+            vec = self.data.get("face_vector")
+        sims = cognaface.compute_similarity(vec)
+        i = np.argmin(sims)
+        return Identity.query.get(int(cognaface.ID_ARRAY[i])).name
+
+    @property
+    def euclidean_distance(self):
+        if self.data.get("face_vector") is None:
+            image = Image.open(
+                os.path.join(app.config["UPLOAD_FOLDER"], self.filepath)
+            )
+            vec = cognaface.get_face_vector(image).tolist()
+            self.data["face_vector"] = vec
+            # what the fuck is this
+            # we force the alchemy to commit updates..
+            flag_modified(self, "data")
+            db.session.commit()
+        else:
+            vec = self.data.get("face_vector")
+        sims = cognaface.compute_euclidean(vec)
+        i = np.argmin(sims)
+
+        return Identity.query.get(int(cognaface.ID_ARRAY[i])).name
+
     def is_fake(self):
         if (
             self.data
@@ -137,7 +178,7 @@ class Detection(db.Model):
             temp_check = float(
                 self.data.get("temps").get("scene_mean")
             ) * 1.1 < float(self.data.get("temps").get("face_mean"))
-            logger.info(temp_check)
+
             if temp_check:
                 return "Human"
         return "Fake"

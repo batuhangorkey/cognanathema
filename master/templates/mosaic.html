@@ -17,51 +17,65 @@
         <strong>No detections in last 24 hours</strong>
     </div>
 
-    <div class="col-6 col-sm-4 col-lg-3">
-        <div class="card mb-4 text-bg-dark border-light">
-            <a href="">
-                <img src="holder.js/300x300" class="card-img-top w-100 h-100">
-            </a>
-            <div class="card-body text-start">
-                <h5 class="card-title">
-                    Name
-                </h5>
-                <p class="card-text">
-                    <small>Date</small>
-                </p>
+    <div class="row text-center g-2" id="cardContainer">
+        {% for det in detections.items %}
 
-                <div class="dropdown d-inline">
-                    <button class="btn btn-sm btn-primary dropdown-toggle"
-                        type="button" id="triggerId" data-bs-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false">
-                        Identity
-                    </button>
-                    <div class="dropdown-menu" aria-labelledby="triggerId">
-                        <button class="dropdown-item" href="#">
-                            True
+        <div class="col-6 col-xs-6 col-sm-4 col-lg-3" id="card-{{ det.id }}">
+            <div
+                class="card 
+                mb-4 
+                text-bg-dark 
+                border-opacity-100 
+                {% if det.is_fake() == 'Human'%} 
+                border-success {%else%} border-danger {%endif%}">
+                <a href="/inspect/{{det.id}}">
+                    <img src="/upload/{{ det.filepath }}"
+                        class="card-img-top w-100 h-100">
+                </a>
+                <div class="card-body text-start">
+                    <h6
+                        class="card-title 
+                        {% if det.is_fake() == 'Human'%} 
+                        {%else%} bg-danger {%endif%}">
+                        {{ det.get_identity() }} - {{det.is_fake()}}
+                    </h6>
+                    <p class="card-text">
+                        <small>{{ det.get_timestamp() }}</small><br>
+                        <small>Cosine: {{ det.cosine_distance }}</small><br>
+                        <small>Euclidean: {{ det.euclidean_distance }}</small><br>
+                    </p>
+
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-sm btn-primary dropdown-toggle"
+                            type="button" id="triggerId" data-bs-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false">
+                            Identity
                         </button>
-                        <button class="dropdown-item" href="#">
-                            False
-                        </button>
+                        <div class="dropdown-menu" aria-labelledby="triggerId">
+                            <button class="dropdown-item" href="#">
+                                True
+                            </button>
+                            <button class="dropdown-item" href="#">
+                                False
+                            </button>
+                        </div>
                     </div>
+                    <button class="btn btn-danger btn-sm"
+                        onclick="deleteCard('{{ det.id }}')">
+                        Delete
+                    </button>
                 </div>
-                <button class="btn btn-danger btn-sm"
-                    onclick="deleteCard('${det.id}')">
-                    Delete
-                </button>
             </div>
         </div>
+
+        {% endfor %}
     </div>
 
-    <div class="row text-center g-2" id="cardContainer">
-        <!--
-            {% for det in detections %}
-    
-    
-            {% endfor %}
-        -->
-    </div>
+    {{ detections.prev() }}
+    {{ detections.next() }}
 </div>
+
+
 
 <script>
     var container = document.getElementById('cardContainer');
@@ -84,22 +98,6 @@
         console.log(data);
         alertDiv.classList.add("d-none");
     });
-
-    // i dont use this anymore
-    function autoUpdate() {
-        fetch('/latest_data')
-            .then(response => response.json())
-            .then(data => {
-                data.forEach(det => {
-                    var exists = document.getElementById(`card-${det.id}`);
-                    if (!exists) {
-                        var cardElement = newDetElement(det);
-                        container.insertBefore(cardElement, container.firstChild);
-                    }
-                });
-            })
-            .catch(error => console.error('Error:', error));
-    }
 </script>
 
 {% endblock view_content %}

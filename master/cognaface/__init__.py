@@ -56,6 +56,13 @@ def compute_similarity(vector):
     return cosine_distance
 
 
+def compute_euclidean(vector):
+    cosine_distance = np.apply_along_axis(
+        lambda x: distance.euclidean(x, vector), axis=1, arr=VECTOR_ARRAY
+    )
+    return cosine_distance
+
+
 def find_identity(vector) -> int | None:
     dis = compute_similarity(vector)
     i = np.argmin(dis)
@@ -71,7 +78,7 @@ def get_face_vector(image: Image.Image):
     aligned face image to vector
     """
     arr = np.array(image)[:, :, ::-1]
-    logger.info(f"Shape of face image: {arr.shape}")
+    logger.info(f"Shape of the face image: {arr.shape}")
 
     vector = DeepFace.represent(
         arr, model_name="VGG-Face", detector_backend="skip"

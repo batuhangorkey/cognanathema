@@ -33,25 +33,14 @@ from master.models import Detection, Identity, User, check_authkey
 
 logger = logging.getLogger("my_logger")
 
-# @login_manager.unauthorized
-# def unauthorized():
-#    pass
-
-
-@app.before_request
-def before_request():
-    # logger.info("Host: %s" % request.host)
-    # logger.info("User agent: %s" % request.headers.get("User-agent"))
-    # logger.info("Root url: %s" % request.url_root)
-    # logger.info("Base url: %s" % request.base_url)
-    pass
-
 
 @app.route("/")
 @login_required
-def index():
-    detections = Detection.get_recent_detections()
-
+def index(page=1, per_page=12):
+    detections = Detection.query.order_by(Detection.timestamp.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
     if request.args.get("v") == "t":
         session["view_mode"] = "table"
     if request.args.get("v") == "s":
