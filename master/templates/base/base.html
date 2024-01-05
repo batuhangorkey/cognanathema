@@ -46,6 +46,7 @@
                     data-bs-toggle="collapse" data-bs-target="#collapsibleNavId"
                     aria-controls="collapsibleNavId" aria-expanded="false"
                     aria-label="Toggle navigation">
+                    Menu
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="collapsibleNavId">
@@ -65,7 +66,7 @@
                         {% if current_user.is_authenticated %}
 
                         <li class="nav-item">
-                            <a class="nav-link disabled" href="/identities">
+                            <a class="nav-link" href="/identities">
                                 Identities
                             </a>
                         </li>

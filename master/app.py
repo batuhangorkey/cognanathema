@@ -15,10 +15,12 @@ logger = logging.getLogger("my_logger")
 logger.setLevel(logging.INFO)
 
 c_handler = logging.StreamHandler()
-file_handler = logging.FileHandler("master/webapp.log", mode="w")
+file_handler = logging.FileHandler(
+    "master/webapp.log", mode="w", encoding="utf-8"
+)
 # handler.setLevel(logging.INFO)
 
-c_format = logging.Formatter("%(threadName)s - %(levelname)s - %(message)s")
+c_format = logging.Formatter("%(threadName)-20s - %(message)s")
 file_handler.setFormatter(c_format)
 c_handler.setFormatter(c_format)
 
@@ -41,12 +43,6 @@ db.init_app(app)
 
 migrate = Migrate(app, db)
 
-# Blueprints
-from .api import api
-
-app.register_blueprint(api, url_prefix="/api")
-
-
 # FLASK-SECURITY
 # DID NOT WORK. I even installed flask security too package.
 # Probably my fault.. I will switch to using FLASK-LOGIN
@@ -57,10 +53,21 @@ app.register_blueprint(api, url_prefix="/api")
 # security = Security(app, user_datastore)
 
 from master import extensions
+from master import cognaface
+cognaface.init()
+
+logger.info(cognaface.VECTOR_ARRAY.shape)
+logger.info(cognaface.ID_ARRAY)
+
 
 # INIT ROUTES
 from master import routes
-from master import cognaface
+
+# Blueprints
+from master.api import api
+
+app.register_blueprint(api, url_prefix="/api")
+
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

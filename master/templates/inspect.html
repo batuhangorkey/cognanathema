@@ -8,34 +8,31 @@ Inspect
 
 <div class="container-fluid my-3">
     <div class="row justify-content-center">
-        <div class="col-8 col-md-5">
-            <div class="card bg-dark shadow-lg rounded-4">
+        <div class="col-auto col-md-4">
+            <div class="card bg-dark shadow-lg rounded-4  mb-3">
+                <img class="card-img-top img-fluid w-100"
+                    src="{{ url_for('view_upload', filename=det.face_path ) }}">
                 <div class="card-body">
-                    <div class="row justify-content-center align-items-center g-2">
-                        <div class="col">
-                            <img class="img-fluid w-100"
-                                src="{{ url_for('view_upload', filename=det.filepath ) }}">
-                        </div>
-                    </div>
-
-                    <!--
-                        <div class="row justify-content-center align-items-center g-2 mt-1">
-                            <div class="col">
-                                <img class="img-fluid"
-                                    src="{{ url_for('view_upload', filename=det.filepath ) }}"
-                                    alt="Image 1">
-                            </div>
-                            <div class="col">
-                                <img class="img-fluid"
-                                    src="{{ url_for('view_upload', filename=det.filepath ) }}"
-                                    alt="Image 2">
-                            </div>
-                        </div>
-                    -->
+                    {{ det.identity.name }}
                 </div>
             </div>
         </div>
-        <div class="col-8 col-md-4 mt-3 mt-md-0">
+
+        <div class="col-auto col-md-4">
+            <div class="card bg-dark shadow-lg rounded-4  mb-3">
+                <img class="card-img-top img-fluid w-100 h-100"
+                    src="{{ url_for('view_upload', filename=det._thermal_path ) }}">
+                <div class="card-body">
+                    <div class="card-text">
+                        Face Mean temperture: {{ det.mean_temp }} 'C
+                        <br>
+                        Scene Mean temperture: {{ det.scene_mean_temp }} 'C
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-auto col-md-3 mb-3 mb-md-0">
             <div class="card bg-dark shadow-lg rounded-4">
                 <div class="card-body">
                     <form method="POST"
@@ -114,7 +111,7 @@ Inspect
                 document.getElementById("delsuc").classList.remove("d-none");
                 setTimeout(function () {
                     location.pathname = "/";
-                }, 2000);
+                }, 1000);
             })
             .catch(error => {
                 console.error('Error sending POST request:', error);

@@ -1,3 +1,5 @@
+import logging
+import os
 import secrets
 from datetime import datetime, timedelta
 from enum import Enum, unique
@@ -11,7 +13,9 @@ from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from master.app import db
+from master.app import app, db
+
+logger = logging.getLogger("my_logger")
 
 
 class JobTypeEnum(Enum):
@@ -26,9 +30,10 @@ class User(db.Model):
     password = db.Column(db.String(64), nullable=False)
 
     roles = db.relationship(
-        "Role", secondary="roles_users", backref=db.backref("users", lazy="dynamic")
+        "Role",
+        secondary="roles_users",
+        backref=db.backref("users", lazy="dynamic"),
     )
-    identity = db.relationship("Identity", backref=db.backref("user", lazy=True))
 
     def __init__(self, username, mail, password) -> None:
         self.username = username
@@ -77,17 +82,77 @@ class Detection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
     filepath = db.Column(db.String(255), nullable=False)
+    thermal_path = db.Column(db.String(255), nullable=True)
+    # filename = db.Column(db.String(255), nullable=True)
+    data = db.Column(db.JSON, nullable=True)
 
-    identity_id = db.Column(db.Integer, db.ForeignKey("identity.id"), nullable=True)
-    identity = db.relationship("Identity", backref=db.backref("detections", lazy=True))
+    identity_id = db.Column(
+        db.Integer, db.ForeignKey("identity.id"), nullable=True
+    )
+    identity = db.relationship(
+        "Identity", backref=db.backref("detections", lazy=True)
+    )
 
     def __repr__(self):
         identity_name = self.get_identity()
         return f"Detections(ID: '{identity_name}', '{self.timestamp}')"
 
+    @property
+    def face_path(self):
+        base = os.path.basename(self.filepath)
+        path = os.path.join("face", base)
+        return path
+
+    @property
+    def _thermal_path(self):
+        base = os.path.basename(self.filepath)
+        path = os.path.join("thermal", base)
+        return path
+
+    @property
+    def mean_temp(self):
+        if self.data is None:
+            return None
+        if self.data.get("temps"):
+            if self.data.get("temps").get("mean_temp"):
+                return "%.2f" % float(self.data.get("temps").get("mean_temp"))
+            if self.data.get("temps").get("face_mean"):
+                return "%.2f" % float(self.data.get("temps").get("face_mean"))
+        return None
+
+    @property
+    def scene_mean_temp(self):
+        if self.data is None:
+            return None
+        if self.data.get("temps") and self.data.get("temps").get("scene_mean"):
+            return "%.2f" % float(self.data.get("temps").get("scene_mean"))
+        return None
+
+    def is_fake(self):
+        if (
+            self.data
+            and self.data.get("temps")
+            and self.data.get("temps").get("face_mean")
+        ):
+            temp_check = float(
+                self.data.get("temps").get("scene_mean")
+            ) * 1.1 < float(self.data.get("temps").get("face_mean"))
+            logger.info(temp_check)
+            if temp_check:
+                return "Human"
+        return "Fake"
+
     def get_identity(self) -> str:
-        if self.identity_id:
-            identity_name = Identity.query.get_or_404(self.identity_id).name
+        if self.identity_id is None:
+            return "Unknown"
+        if isinstance(self.identity_id, bytes):
+            # backwards compat
+            id = int.from_bytes(self.identity_id, byteorder="little")
+            identity = Identity.query.get(id)
+        else:
+            identity = Identity.query.get(self.identity_id)
+        if identity:
+            identity_name = identity.name
         else:
             identity_name = "Unknown"
         return identity_name
@@ -99,6 +164,7 @@ class Detection(db.Model):
             "timestamp": self.timestamp.ctime(),
             "time_human": self.get_timestamp(),
             "filepath": self.filepath,
+            "fake": self.is_fake(),
         }
 
     def get_timestamp(self):
@@ -120,8 +186,6 @@ class Identity(db.Model):
     name = db.Column(db.String(100), nullable=False)
     data = db.Column(db.JSON, nullable=True)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, unique=True)
-
     def __init__(self, name, data) -> None:
         super().__init__()
         self.name = name
@@ -129,6 +193,17 @@ class Identity(db.Model):
 
     def __repr__(self):
         return f"Identity('{self.name}', '{self.data}')"
+
+    def get_face(self):
+        if self.data is None:
+            return "holder.js/300x300"
+        path = self.data.get("face_path")
+        if path is None:
+            return "holder.js/300x300"
+        pre = os.path.join(app.root_path, "uploads")
+        path = path.removeprefix(pre)
+        path = "upload" + path
+        return path
 
 
 class AuthKey(db.Model):

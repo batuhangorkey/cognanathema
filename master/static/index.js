@@ -1,5 +1,5 @@
 // Hi
-var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 console.log(socket);
 
 socket.on("connect", () => {
@@ -20,13 +20,6 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-function setGenderPreference(gender) {
-    sessionStorage.setItem('view', gender);
-}
-
-function getGenderPreference() {
-    return sessionStorage.getItem('view');
-}
 
 function isStrongPassword(password) {
     // Regular expressions for password strength
@@ -56,24 +49,101 @@ function newDetElement(det) {
     classes.forEach(det => cardDivElement.classList.add(det))
     // important for later stuff
     cardDivElement.id = `card-${det.id}`;
+    var backgroundColorClass = det.fake === 'Fake' ? 'bg-danger' : '';
+    var borderColorClass = det.fake === 'Fake' ? 'border-danger' : 'border-success';
+
     cardDivElement.innerHTML = `
-            <div class="card text-bg-dark border-light border-opacity-50">
+            <div class="card text-bg-dark border-opacity-100 ${borderColorClass}">
                 <a href="/inspect/${det.id}">
                     <img src="/upload/${det.filepath}" class="card-img-top">
                 </a>
                 <div class="card-body text-start">
-                    <h6 class="card-title">
-                        ${det.name}
+                    <h6 class="card-title ${backgroundColorClass}">
+                        ${det.name} - ${det.fake}
                     </h6>
                     <p class="card-text">
                         <small class="text-muted">
                             ${det.timestamp}
                         </small>
                     </p>
+                    <button class="btn btn-danger" onclick="deleteCard('${det.id}')">
+                    Delete
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteCard('${det.id}')">
+                    Delete
+                    </button>
                 </div>
             </div>
         `;
+    cardDivElement.dataset.cardId = det.id;
     return cardDivElement;
+}
+
+function uploadPhoto() {
+    const form = document.getElementById('uploadForm');
+    const formData = new FormData(form);
+    const alert = document.getElementById('alert');
+
+    console.log(formData);
+
+
+    fetch('/api/detect/face', {
+        method: 'POST',
+        body: formData,
+    })
+        .then(response => response.json())
+        .then(data => {
+            displayFaceResult(data.result);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+
+            alert.classList.remove("d-none");
+            alert.innerHTML = error;
+        });
+}
+
+function displayFaceResult(result) {
+    const imgTag = document.getElementById('img');
+    const alert = document.getElementById('alert');
+
+    imgTag.src = result.face;
+
+    // alert.innerHTML = `<p>${result.face}</p>`;
+
+}
+
+function confirmFace() {
+    const faceImage = document.getElementById('img');
+    const alert = document.getElementById("alert");
+
+    const data = {
+        name: document.querySelector('input[name="name"]').value,
+        image: faceImage.src,
+    };
+
+    fetch('/api/register/face', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+        .then(response => response.json())
+        .then(serverResponse => {
+            console.log(serverResponse);
+
+            alert.classList.remove("d-none");
+            alert.innerHTML = serverResponse.result;
+
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+
+            alert.classList.remove("d-none");
+            alert.innerHTML = error;
+        });
 }
 
 function initial() {
@@ -126,7 +196,7 @@ addEventListener("DOMContentLoaded", (event) => {
     }
 
     if (location.pathname == "/live") {
-        var socketLive = io.connect(location.protocol
+        const socketLive = io.connect(location.protocol
             + '//' + document.domain
             + ':' + location.port
             + "/live");
@@ -142,14 +212,16 @@ addEventListener("DOMContentLoaded", (event) => {
 
         var thermalTable = document.getElementById("thermalTable");
 
-        console.log("Live");
+        var totalWatchers = 0;
+        var viewerCount = document.getElementById("viewerCount");
 
-        socketLive.emit("join_stream");
+        console.log("Live pager");
 
         loadingDiv.classList.remove("d-none");
 
         socketLive.on("connect", () => {
             console.log("Connected with id: " + socket.id);
+            socketLive.emit("join_stream");
         });
 
         socketLive.on('message', function (data) {
@@ -157,17 +229,38 @@ addEventListener("DOMContentLoaded", (event) => {
             if (data == "Looking for streamer") {
 
             }
+
+            if (data.viewer_count) {
+                viewerCount.innerHTML = data.viewer_count;
+            }
+
             if (data == "streaming") {
                 loadingDiv.classList.add("d-none");
                 thermalTable.classList.remove("d-none");
                 streamDiv.classList.remove("d-none");
             }
+
+            if (data == "joined_room") {
+                totalWatchers += 1;
+                viewerCount.innerHTML = totalWatchers;
+            }
+
+            if (data == "left_room") {
+                totalWatchers -= 1;
+                if (totalWatchers < 0) {
+                    totalWatchers = 0;
+                }
+
+                viewerCount.innerHTML = totalWatchers;
+            }
         });
 
         socketLive.on('receive_cam_frame', function (data) {
             console.log(data);
-            //const blob = new Blob([data.frame], { type: 'image/jpeg' });
-            //const url = URL.createObjectURL(blob);
+
+            // const blob = new Blob([data.frame], { type: 'image/jpeg' });
+            // const url = URL.createObjectURL(blob);
+
             imgCam.src = data.frame;
         });
 

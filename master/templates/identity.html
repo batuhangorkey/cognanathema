@@ -5,19 +5,65 @@
 <div class="container my-2">
   <div class="row text-center g-2" id="cardContainer">
 
-    {% for det in detections %}
-
-    <div class="col-4">
+    <div class="col-12">
       <div class="card mb-4 text-bg-dark border-light">
-        <a href="{{ url_for('inspect', id=det.id ) }}">
-          <img src="{{ url_for('view_upload', filename=det.filepath ) }}"
-            class="card-img-top">
-        </a>
+
         <div class="card-body text-start">
           <h5 class="card-title">
-            {{ det.get_identity() }}
+            Create new
           </h5>
-          <p class="card-text"><small>{{ det.get_timestamp() }}</small></p>
+          <hr>
+
+          <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" name="photo" class="form-control mb-3" required>
+
+            <div id="faceResult" class="mt-3">
+              <img class="img-fluid" src="holder.js/200x200" id="img" />
+            </div>
+
+            <button type="button" onclick="uploadPhoto()"
+              class="btn btn-primary my-3">
+              Upload Photo
+            </button>
+
+            <input type="text" name="name" class="form-control mb-3"
+              placeholder="Enter Name">
+
+            <button type="button" onclick="confirmFace()"
+              class="btn btn-success mt-3">
+              Confirm
+            </button>
+          </form>
+
+
+          <div id="alert" class="d-none alert alert-success mt-4" role="alert">
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <h4>
+      Population: {{ identities.__len__() }}
+    </h4>
+    <hr>
+    {% for det in identities %}
+
+    <div class="col-3">
+      <div class="card mb-4 text-bg-dark border-light">
+        <img src="{{ det.get_face() }}" class="h-100 card-img-top img-fluid">
+
+        <div class="card-body text-start">
+          <h6 class="card-title">
+            {{ det.name }} - {{ det.id }}
+          </h6>
+          <div class="card-text">
+
+            <button type="button" onclick="" class="btn btn-danger mt-1 btn-sm">
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>

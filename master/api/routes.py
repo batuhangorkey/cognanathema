@@ -10,16 +10,16 @@ from typing import List
 
 import magic
 import numpy as np
-from flask import Blueprint, abort, jsonify, request, session
+from flask import Blueprint, abort, jsonify, request, session, current_app
 from flask_login import current_user, logout_user
-from flask_socketio import SocketIO, join_room, send, rooms
+from flask_socketio import SocketIO, join_room, rooms, send
 from flask_sqlalchemy.query import Query
 from PIL import Image
 from werkzeug.datastructures import FileStorage
 
 from master.api import api
-from master.app import app, db, logger
-from master.cognaface import draw_face, get_face, recognizer
+from master.app import app, cognaface, db, logger
+from master.cognaface import draw_face, get_face
 from master.extensions import socketio
 from master.models import Detection, Identity, User
 
@@ -28,11 +28,33 @@ MAX_FILE_SIZE = 16 * 1e3
 
 def check_json(func):
     @wraps(func)
-    def wrapper():
+    def wrapper(*args, **kwargs):
         data = request.json
         if not data:
             return jsonify("JSON missing"), 400
-        return func()
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def check_image_file(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        data = request.json
+        if not data:
+            return jsonify("JSON missing"), 400
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def check_image_json(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        data = request.json
+        if not data:
+            return jsonify("JSON missing"), 400
+        return func(*args, **kwargs)
 
     return wrapper
 
@@ -83,11 +105,16 @@ def handle_disconnect():
 @socketio.on("message")
 def handle_message(data):
     logger.info(data)
-    if isinstance(data, dict) and data.get("job") == "slave":
+
+    if data.get("job") == "slave":
         logger.info("Joined room")
         join_room("streamer_room")
-    
-    if data == "Started streaming":
+
+    if data.get("viewer_count"):
+        # count = data.get("viewer_count")
+        socketio.send(data, to="viewer_room", namespace="/live")
+
+    if data.get("stream") == "start":
         socketio.send("streaming", to="viewer_room", namespace="/live")
 
 
@@ -105,12 +132,16 @@ def handle_video_data(data):
     image.save(stream, "jpeg")
     transformed_image = encode_image(stream.getvalue())
 
-    socketio.emit("transformed_image", {"transformed_image": transformed_image})
+    socketio.emit(
+        "transformed_image", {"transformed_image": transformed_image}
+    )
 
 
 @socketio.on("stream")
 def handle_stream():
-    logger.info("Starting a live stream requested by client id: %s" % request.sid)
+    logger.info(
+        "Starting a live stream requested by client id: %s" % request.sid
+    )
 
     # socketio.emit("start_stream", {"client": request.sid})
 
@@ -118,10 +149,13 @@ def handle_stream():
 @socketio.on("join_stream", namespace="/live")
 def handle_start_stream():
     # TODO: ADD TOKEN VERIFICATION, ITS IMPORTANTTT!!
-    logger.info("Starting a live stream requested by client id: %s" % request.sid)
+    logger.info(
+        "Starting a live stream requested by client id: %s" % request.sid
+    )
     join_room("viewer_room", namespace="/live")
-    
+
     socketio.send("Looking for streamer", to=request.sid)
+
     socketio.emit("start_stream", {"client": request.sid}, to="streamer_room")
 
 
@@ -129,7 +163,7 @@ def handle_start_stream():
 def handle_live_stream(data):
     encoded_frame = encode_image(data["frame"])
     data["frame"] = encoded_frame
-    
+
     if data["type"] == "thermal":
         event = "receive_thermal_frame"
     else:
@@ -167,7 +201,9 @@ def identity():
 @api.route("/latest_data", methods=["GET"])
 def latest_data():
     one_day_ago = datetime.utcnow() - timedelta(days=1)
-    detections_q: Query = Detection.query.filter(Detection.timestamp >= one_day_ago)
+    detections_q: Query = Detection.query.filter(
+        Detection.timestamp >= one_day_ago
+    )
     detections: List[Detection] = detections_q.order_by(
         Detection.timestamp.desc()
     ).all()
@@ -206,134 +242,146 @@ def upload_picture():
 
 
 @check_json
+@api.route("/detect/face", methods=["POST"])
+def detect_face():
+    logger.info(request.form)
+    uploaded_file = request.files.get("photo")
+
+    if not sanitize_file(uploaded_file):
+        return jsonify("File not safe"), 200
+
+    stream = BytesIO()
+    uploaded_file.save(stream)
+
+    image = Image.open(stream)
+    face = get_face(image)
+
+    if face is None:
+        return jsonify({"error": "Face not found"}), 200
+
+    logger.info("Face found")
+
+    stream.seek(0)
+    stream.truncate(0)
+
+    face.save(stream, "jpeg")
+    face_binary_data = stream.getvalue()
+    face_base64 = base64.b64encode(face_binary_data).decode("utf-8")
+    # this part is missing, i dont know why
+    # it is important for the website to understand its format
+    face_base64 = "data:image/jpeg;base64," + face_base64
+    data = {"face": face_base64}
+
+    return jsonify({"result": data}), 200
+
+
+@check_json
 @api.route("/register/face", methods=["POST"])
 def register_face():
-    # A face is sent, then it is registered to the user
-    data = request.json
-    image_data: str = data.get("image")
+    image_data: str = request.json.get("image")
     # data comes with a leading part, it tells the type
     image_bytes = base64.b64decode(image_data.split(",")[1])
 
+    name: str = request.json.get("name")
+
     if not sanitize_file(image_bytes):
         return jsonify("File not safe"), 400
-
-    user: User = current_user
 
     stream = BytesIO(image_bytes)
     image = Image.open(stream)
 
     filename = secrets.token_urlsafe(4) + ".jpg"
+    path = os.path.join(app.config["UPLOAD_FOLDER"], "face", filename)
+    image.save(path)
 
-    filepath = os.path.join("face", filename)
-    fullpath = os.path.join(app.root_path, "uploads", "face", filename)
+    vector = cognaface.get_face_vector(image).tolist()
 
-    if os.path.exists(fullpath):
-        logger.warning("Path exists at %s" % fullpath)
-        return jsonify({"result": "failed"}), 400
+    data = {"face_vector": vector, "face_path": path}
 
-    image.save(fullpath)
-
-    data = {"registered_face_path": filepath}
-    identity = Identity.query.filter(Identity.name == user.username).first()
-    if not identity:
-        identity = Identity(name=user.username, data=data)
-
-    identity.user_id = user.id
-
+    identity = Identity.query.filter(Identity.name == name).first()
+    if identity:
+        identity.data = data
+    else:
+        new = Identity(name=name, data=data)
+        db.session.add(new)
+    db.session.commit()
     return jsonify({"result": "success"}), 200
 
 
-@api.route("/upload", methods=["POST"])
-def upload():
+@api.route("/recognize", methods=["POST"])
+def recognize():
     # TODO: ORDER AND GROUP THE SAME PEOPLE,
     # OTHERWISE MAIN PAGE IS FILLED WITH THE SAME HUMAN
     # TODO: MOVE THIS TO SOMEWHERE ELSE AND REWRITE, THIS CODE IS UGLY
     logger.info("Remote address: %s" % request.remote_addr)
 
-    uploaded_file = request.files.get("file")
-    timestamp = request.form.get("timestamp")
-    face_detection_time = request.form.get("face_detection_time")
-
-    if not uploaded_file:
+    uploaded_file = request.files.get("face_file")
+    thermal = request.files.get("thermal_file")
+    if not uploaded_file or not thermal:
         return jsonify("Missing file"), 400
+    timestamp = request.form.get("timestamp")
+    temps = {
+        "face_mean": request.form.get("face_mean"),
+        "scene_max": request.form.get("scene_max"),
+        "scene_min": request.form.get("scene_min"),
+        "scene_mean": request.form.get("scene_mean"),
+    }
 
-    if not sanitize_file(uploaded_file):
+    if not sanitize_file(uploaded_file) or not sanitize_file(thermal):
         return jsonify("File is not safe"), 400
-
-    if not timestamp:
-        return jsonify("Missing timestamp"), 400
-
-    if not face_detection_time and not isinstance(face_detection_time, int):
-        return jsonify("Error on face detection time"), 400
-    else:
-        face_detection_time = int(face_detection_time)
 
     try:
         timestamp = datetime.strptime(timestamp, "%a %b %d %H:%M:%S %Y")
     except ValueError:
         return jsonify("Timestamp not in correct format"), 400
 
-    server_delay = elapsed_time(timestamp)
+    stream = BytesIO()
+    uploaded_file.save(stream)
+    image = Image.open(stream)
 
-    filename = secrets.token_urlsafe(32) + ".jpg"
-    path = os.path.join(app.root_path, "uploads", filename)
+    filename = secrets.token_urlsafe(4) + ".jpg"
 
-    try:
-        uploaded_file.save(path)
-        PIL_img = Image.open(path).convert("L")
-    except Exception as e:
-        logger.warning(e)
-        if os.path.exists(path):
-            logger.info(f"Removed file at: {path}")
-            os.remove(path)
-        return jsonify(f"Error: {e}"), 400
+    face_filepath = os.path.join("face", filename)
+    thermal_filepath = os.path.join("thermal", filename)
 
-    img_numpy = np.array(PIL_img, "uint8")
-    id, confidence = recognizer.predict(img_numpy)
+    face_fullpath = os.path.join(app.config["UPLOAD_FOLDER"], face_filepath)
+    thermal_fullpath = os.path.join(
+        app.config["UPLOAD_FOLDER"], thermal_filepath
+    )
 
-    identity = Identity.query.get_or_404(id)
-    logger.info("ID: %s, Confidence: %s" % (identity, confidence))
+    vector1 = cognaface.get_face_vector(image)
 
-    face_recognition = elapsed_time(timestamp) - server_delay
+    logger.info(temps)
 
-    new_det = Detection(timestamp=timestamp, filepath=filename)  # type: ignore
+    found_id = cognaface.find_identity(vector1)
 
-    if confidence > 70:
-        # TODO: IDEA: weak identites
-        print(f"Weak identity: {identity}")
+    logger.info(found_id)
+
+    new_det = Detection(timestamp=timestamp, filepath=face_filepath)  # type: ignore
+    new_det.data = {"temps": temps, "fake": False}
+    new_det.thermal_path = thermal_filepath
+
+    if found_id is None:
+        response_data = {"identity": "not found"}
     else:
-        # Identity found
-        # see if we detected this human in the last one minute
-        min_ago = datetime.utcnow() - timedelta(minutes=1)
-        past_detections = Detection.query.filter(
-            Detection.timestamp >= min_ago, Detection.identity == identity
-        )
-        if past_detections.count() > 0:
-            return jsonify("repetitive spam"), 400
+        logger.info("Finding ID with: %d" % found_id)
+        found_identity = Identity.query.get(found_id)
+        logger.info(found_identity.name)
 
-        logger.info(f"Found identity: {identity}")
-        new_det.identity_id = identity.id
+        new_det.identity_id = found_id
+
+        response_data = {"identity": found_identity.name}
 
     db.session.add(new_det)
     db.session.commit()
 
+    image.save(face_fullpath)
+    thermal.save(thermal_fullpath)
+
     data = new_det.serialize()
-
-    # print(f"From node to end of recognition in us: {elapsed_time(timestamp)}")
-    # h = humanize.naturaldelta(elapsed, minimum_unit="milliseconds")
-    # print(h)
-
-    performance = {
-        "server_delay": server_delay.microseconds // 1000,
-        "face_detection_time": face_detection_time // 1000,
-        "face_recognition": face_recognition.microseconds // 1000,
-    }
-
-    logger.info(performance)
-
     socketio.emit("update_table", data)
 
-    return jsonify(data), 200
+    return jsonify(response_data), 200
 
 
 def sanitize_file(file):
@@ -346,6 +394,8 @@ def sanitize_file(file):
     elif isinstance(file, FileStorage):
         mime = magic.from_buffer(file.stream.read(2048), mime=True)
         file.stream.seek(0)
+    elif file is None:
+        return False
     else:
         raise NotImplementedError()
     logger.info("Mime type: %s" % mime)

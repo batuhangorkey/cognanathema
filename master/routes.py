@@ -67,11 +67,7 @@ def index():
 @login_required
 def inspect(id):
     user: User = current_user
-
     det: Detection = Detection.query.get_or_404(id)
-
-    logger.info(det.identity)
-
     if request.method == "POST":
         name = request.form.get("name")
         if not name:
@@ -158,7 +154,9 @@ def login():
         if res:
             return redirect(url_for("index"))
         else:
-            return render_template("user/login.html", context={"ERROR": "PASSWORD"})
+            return render_template(
+                "user/login.html", context={"ERROR": "PASSWORD"}
+            )
     return render_template("user/login.html")
 
 
@@ -182,14 +180,18 @@ def signup():
 
         user = User.query.filter(User.mail == mail).first()
         if user:
-            return render_template("user/signup.html", context={"ERROR": "USER_EXISTS"})
+            return render_template(
+                "user/signup.html", context={"ERROR": "USER_EXISTS"}
+            )
         p = request.form.get("password")
         k = request.form.get("authkey")
         new_user = User(username, mail, p)
         if check_authkey(k):
             db.session.add(new_user)
             db.session.commit()
-            return render_template("user/signup.html", context={"ERROR": "SUCCESS"})
+            return render_template(
+                "user/signup.html", context={"ERROR": "SUCCESS"}
+            )
         else:
             return render_template(
                 "user/signup.html", context={"ERROR": "AUTHKEY_NOT_FOUND"}
@@ -200,14 +202,11 @@ def signup():
 
 @app.route("/upload/<path:filename>", methods=["GET"])
 def view_upload(filename):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    dir = os.path.dirname(path)
+    file = os.path.basename(path)
 
-
-@app.route("/identity/<id>", methods=["GET"])
-def identity(id):
-    detections = Detection.query.filter(Detection.identity_id == id)
-
-    return render_template("identity.html", user=None, detections=detections)
+    return send_from_directory(dir, file)
 
 
 @app.route("/identities", methods=["GET"])
@@ -215,7 +214,7 @@ def identities():
     # TODO:
     identities = Identity.query.all()
 
-    return render_template("identity.html", identities=identities, user=None)
+    return render_template("identity.html", identities=identities)
 
 
 @app.route("/live", methods=["GET"])
