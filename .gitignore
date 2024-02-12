@@ -11,3 +11,5 @@ trainer/trainer.yml
 hellow.txt
 master/webapp.log
 master/static/holder.js
+*.code-workspace
+*.db

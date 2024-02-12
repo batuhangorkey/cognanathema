@@ -36,11 +36,13 @@ logger = logging.getLogger("my_logger")
 
 @app.route("/")
 @login_required
-def index(page=1, per_page=12):
+def index():
+    page = request.args.get("page", 1, type=int)
+    per_page = 12
     detections = Detection.query.order_by(Detection.timestamp.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
-    
+
     if request.args.get("v") == "t":
         session["view_mode"] = "table"
     if request.args.get("v") == "s":
@@ -68,15 +70,15 @@ def inspect(id):
             det.identity = c
             db.session.commit()
             return redirect(url_for("inspect", id=id))
-        else:
-            # add the new identity
-            new_identity = Identity(name=name)  # type: ignore
-            db.session.add(new_identity)
+
         if det.identity:
             if name == "":
                 # delete the identity connected to this detection
                 det.identity_id = None
         else:
+            # add the new identity
+            new_identity = Identity(name=name)  # type: ignore
+            db.session.add(new_identity)
             # connect new identity and detection together
             det.identity_id = new_identity.id
         db.session.commit()
@@ -194,7 +196,6 @@ def view_upload(filename):
     path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     dir = os.path.dirname(path)
     file = os.path.basename(path)
-
     return send_from_directory(dir, file)
 
 

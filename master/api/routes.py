@@ -10,11 +10,12 @@ from typing import List
 
 import magic
 import numpy as np
-from flask import Blueprint, abort, jsonify, request, session, current_app
+from flask import Blueprint, abort, current_app, jsonify, request, session
 from flask_login import current_user, logout_user
 from flask_socketio import SocketIO, join_room, rooms, send
 from flask_sqlalchemy.query import Query
 from PIL import Image
+from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.datastructures import FileStorage
 
 from master.api import api
@@ -172,15 +173,39 @@ def handle_live_stream(data):
     socketio.emit(event, data, to="viewer_room", namespace="/live")
 
 
-@check_id
 @api.route("/detection", methods=["POST", "DELETE"])
 def detection():
+    if request.json is None:
+        return jsonify("Error"), 400
     id = request.json["id"]
     det: Detection = Detection.query.get_or_404(id)
     if request.method == "DELETE":
+        det.face_path
         db.session.delete(det)
         db.session.commit()
         return jsonify("Successfully deleted"), 200
+
+    return jsonify("Error"), 400
+
+
+@api.route("/detection/mark", methods=["POST"])
+def detection_mark():
+    if request.json is None:
+        return jsonify("Error"), 400
+    logger.info(request.json)
+    id = request.json["id"]
+
+    det: Detection = Detection.query.get_or_404(id)
+
+    if request.method == "POST":
+        if request.json["type"] == "face":
+            det.data["face_mark"] = request.json["mark"]
+        if request.json["type"] == "temp":
+            det.data["temp_mark"] = request.json["mark"]
+
+        flag_modified(det, "data")
+        db.session.commit()
+        return jsonify("Success"), 200
 
     return jsonify("Error"), 400
 
@@ -350,15 +375,17 @@ def recognize():
     )
 
     vector1 = cognaface.get_face_vector(image)
-
-    logger.info(temps)
-
     found_id = cognaface.find_identity(vector1)
 
+    logger.info(temps)
     logger.info(found_id)
 
     new_det = Detection(timestamp=timestamp, filepath=face_filepath)  # type: ignore
-    new_det.data = {"temps": temps, "fake": False}
+    new_det.data = {
+        "temps": temps,
+        "fake": False,
+        "face_vector": vector1.tolist(),
+    }
     new_det.thermal_path = thermal_filepath
 
     if found_id is None:
@@ -373,10 +400,13 @@ def recognize():
         response_data = {"identity": found_identity.name}
 
     db.session.add(new_det)
-    db.session.commit()
-
-    image.save(face_fullpath)
-    thermal.save(thermal_fullpath)
+    try:
+        image.save(face_fullpath)
+        thermal.save(thermal_fullpath)
+    except Exception:
+        db.session.rollback()
+    else:
+        db.session.commit()
 
     data = new_det.serialize()
     socketio.emit("update_table", data)
