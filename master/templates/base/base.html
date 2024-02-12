@@ -12,24 +12,26 @@
     </title>
     <link rel="icon" type="image/x-icon"
         href="{{ url_for('static', filename='favicon/favicon.ico') }}">
+
+    <!-- CSS -->
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
         integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
         crossorigin="anonymous">
-    <link href="{{ url_for('static', filename='index.css' ) }}" rel="stylesheet">
 
-    <!--
-        <script src="https://cdn.socket.io/socket.io-1.0.0.js"></script>
-    -->
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css' ) }}">
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+    integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+    crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
         integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
         crossorigin="anonymous"></script>
 
     <script src="{{ url_for('static', filename='index.js' ) }}"></script>
     <script src="{{ url_for('static', filename='holder.js') }}"></script>
-    
+
 </head>
 
 <body class="d-flex flex-column vh-100">
@@ -57,8 +59,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('live') }}"
-                                id="">
+                            <a class="nav-link" href="{{ url_for('live') }}" id="">
                                 Live
                             </a>
                         </li>

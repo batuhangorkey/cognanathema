@@ -1,10 +1,10 @@
 // Hi
 const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-console.log(socket);
+
 
 socket.on("connect", () => {
     console.log("Connected with id: " + socket.id);
-
+    console.log(socket);
 });
 
 function refreshPage() {
@@ -115,6 +115,39 @@ function deleteCard(cardId) {
     });
 }
 
+function markCard(cardId, mark, type) {
+    if (!type) {
+        type = "face";
+    }
+    fetch('/api/detection/mark', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ "id": cardId, "mark": mark, "type": type })
+    }).then(response => {
+        if (!response.ok) {
+
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    }).then(data => {
+        const cardElement = document.getElementById(`card-${cardId}`);
+        if (mark) {
+            cardElement.firstElementChild.classList.remove("border-danger")
+            cardElement.firstElementChild.classList.remove("border-light")
+            cardElement.firstElementChild.classList.add("border-success")
+        } else {
+            cardElement.firstElementChild.classList.remove("border-success")
+            cardElement.firstElementChild.classList.remove("border-light")
+            cardElement.firstElementChild.classList.add("border-danger")
+
+        }
+    }).catch(error => {
+        console.error('Error sending POST request:', error);
+    });
+}
+
 function uploadPhoto() {
     const form = document.getElementById('uploadForm');
     const formData = new FormData(form);
@@ -192,10 +225,10 @@ function initial() {
                 alertDiv.classList.remove("d-none");
                 return;
             }
-            data.forEach(det => {
-                var cardElement = newDetElement(det);
-                container.append(cardElement);
-            });
+            //data.forEach(det => {
+            //    var cardElement = newDetElement(det);
+            //    container.append(cardElement);
+            //});
         })
         .catch(error => console.error('Error:', error));
 }

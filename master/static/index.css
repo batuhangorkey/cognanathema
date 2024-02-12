@@ -1,4 +1,3 @@
-
 body {
     background: #f093fb;
     color: #f1e9e9;
@@ -20,40 +19,4 @@ img {
     background: -webkit-linear-gradient(to bottom right, rgba(240, 147, 251, 1), rgba(245, 87, 108, 1));
     /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
     background: linear-gradient(to bottom right, rgba(99, 0, 113), rgba(151, 0, 17))
-}
-
-.custom-card {
-    border-radius: 15px;
-}
-
-.image-container,
-.form-container {
-    width: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.img-small {
-    height: 20vh;
-    width: auto;
-}
-
-.img-main {
-    height: 65vh !important;
-    width: auto;
-    filter: brightness(100%);
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    font-weight: bold;
-}
-
-.table {
-    background-color: #32323a;
-    color: #e4d9d9;
 }

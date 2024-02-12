@@ -8,25 +8,32 @@ Inspect
 
 <div class="container-fluid my-3">
     <div class="row justify-content-center">
-        <div class="col-auto col-md-4">
-            <div class="card bg-dark shadow-lg rounded-4  mb-3">
-                <img class="card-img-top img-fluid w-100"
-                    src="{{ url_for('view_upload', filename=det.face_path ) }}">
-                <div class="card-body">
-                    {{ det.identity.name }}
-                </div>
-            </div>
-        </div>
+        <div class="col-auto col-md-7">
 
-        <div class="col-auto col-md-4">
-            <div class="card bg-dark shadow-lg rounded-4  mb-3">
-                <img class="card-img-top img-fluid w-100 h-100"
-                    src="{{ url_for('view_upload', filename=det._thermal_path ) }}">
-                <div class="card-body">
-                    <div class="card-text">
-                        Face Mean temperture: {{ det.mean_temp }} 'C
-                        <br>
-                        Scene Mean temperture: {{ det.scene_mean_temp }} 'C
+            <div class="card-group">
+                <div class="card bg-dark shadow-lg">
+                    <img class="card-img-top img-fluid w-100"
+                        src="{{ url_for('view_upload', filename=det.face_path ) }}" />
+                    <div class="card-body">
+
+                    </div>
+                    <div class="card-footer">
+                        {{ det.identity.name }}
+                    </div>
+                </div>
+                <div class="card bg-dark shadow-lg">
+                    <img class="card-img-top img-fluid w-100"
+                        src="{{ url_for('view_upload', filename=det._thermal_path ) }}" />
+                    <div class="card-body">
+
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-text">
+                            Face Mean temperture: {{ "%.2f" % det.mean_temp }} 'C
+                            <br>
+                            Scene Mean temperture: {{ "%.2f" % det.scene_mean_temp }}
+                            'C
+                        </div>
                     </div>
                 </div>
             </div>
