@@ -114,7 +114,7 @@
                         </div>
 
                         <div class="dropdown btn-group">
-                            <button class="btn btn-sm btn-secondary dropdown-toggle"
+                            <button class="btn btn-sm btn-primary dropdown-toggle"
                                 type="button" id="triggerId"
                                 data-bs-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false">
@@ -178,31 +178,25 @@
             {% endif %}
         </ul>
     </nav>
-
 </div>
 
-
-
 <script>
-    var container = document.getElementById('cardContainer');
-    let alertDiv = document.getElementById("alert");
-
-    addEventListener("DOMContentLoaded", (event) => {
-        let loadingDiv = document.getElementById("loading");
-
+    $(() => {
+        var container = document.getElementById('cardContainer');
+        let alertDiv = document.getElementById("alert");
         // could be done better
-        loadingDiv.classList.remove("d-none");
+        $("#loading").removeClass('d-none');
         setTimeout(function () {
             initial();
-            loadingDiv.classList.add("d-none");
+            $("#loading").addClass("d-none");
         }, 1000);
-    });
 
-    socket.on('update_table', function (data) {
-        var cardElement = newDetElement(data);
-        container.insertBefore(cardElement, container.firstChild);
-        console.log(data);
-        alertDiv.classList.add("d-none");
+        socket.on('update_table', function (data) {
+            var cardElement = newDetElement(data);
+            container.insertBefore(cardElement, container.firstChild);
+            console.log(data);
+            alertDiv.classList.add("d-none");
+        });
     });
 </script>
 

@@ -2,11 +2,6 @@
 const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
 
-socket.on("connect", () => {
-    console.log("Connected with id: " + socket.id);
-    console.log(socket);
-});
-
 function refreshPage() {
     if (location.pathname == "/") {
         setTimeout(function () {
@@ -93,25 +88,16 @@ function newDetElement(det) {
 }
 
 function deleteCard(cardId) {
-    fetch('/api/detection', {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
+    $.ajax({
+        type: "DELETE",
+        url: "/api/detection",
+        data: JSON.stringify({ "id": cardId }),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (response) {
+            $('#card-' + cardId).remove();
         },
-        body: JSON.stringify({ "id": cardId })
-    }).then(response => {
-        if (!response.ok) {
-
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    }).then(data => {
-        const cardElement = document.getElementById(`card-${cardId}`);
-        if (cardElement) {
-            cardElement.remove();
-        }
-    }).catch(error => {
-        console.error('Error sending POST request:', error);
+        error: function (err) { alert("Error trying to delete.") }
     });
 }
 
@@ -127,7 +113,6 @@ function markCard(cardId, mark, type) {
         body: JSON.stringify({ "id": cardId, "mark": mark, "type": type })
     }).then(response => {
         if (!response.ok) {
-
             throw new Error('Network response was not ok');
         }
         return response.json();
@@ -141,7 +126,6 @@ function markCard(cardId, mark, type) {
             cardElement.firstElementChild.classList.remove("border-success")
             cardElement.firstElementChild.classList.remove("border-light")
             cardElement.firstElementChild.classList.add("border-danger")
-
         }
     }).catch(error => {
         console.error('Error sending POST request:', error);
@@ -152,10 +136,7 @@ function uploadPhoto() {
     const form = document.getElementById('uploadForm');
     const formData = new FormData(form);
     const alert = document.getElementById('alert');
-
     console.log(formData);
-
-
     fetch('/api/detect/face', {
         method: 'POST',
         body: formData,
@@ -175,11 +156,8 @@ function uploadPhoto() {
 function displayFaceResult(result) {
     const imgTag = document.getElementById('img');
     const alert = document.getElementById('alert');
-
     imgTag.src = result.face;
-
     // alert.innerHTML = `<p>${result.face}</p>`;
-
 }
 
 function confirmFace() {
@@ -233,7 +211,12 @@ function initial() {
         .catch(error => console.error('Error:', error));
 }
 
-addEventListener("DOMContentLoaded", (event) => {
+$(document).ready(function () {
+    socket.on("connect", () => {
+        console.log("Connected with id: " + socket.id);
+        console.log(socket);
+    });
+
     let loadingDiv = document.getElementById("loading");
 
     console.log("We are currently at " + location.pathname);
@@ -246,19 +229,6 @@ addEventListener("DOMContentLoaded", (event) => {
             element.classList.add("active");
         }
     });
-
-    function checkPassword(passwordInput) {
-        if (isStrongPassword(passwordInput.value)) {
-            passwordInput.classList.remove('is-invalid');
-            passwordInput.classList.add('is-valid');
-            return true;
-        }
-        else {
-            passwordInput.classList.add('is-invalid');
-            passwordInput.classList.remove('is-valid');
-            return false;
-        }
-    }
 
     if (location.pathname == "/") {
 
@@ -509,5 +479,18 @@ addEventListener("DOMContentLoaded", (event) => {
             starCamBtn.parentElement.classList.remove("d-none");
         });
     }
+});
 
-})
+function checkPassword(passwordInput) {
+    if (isStrongPassword(passwordInput.value)) {
+        passwordInput.classList.remove('is-invalid');
+        passwordInput.classList.add('is-valid');
+        return true;
+    }
+    else {
+        passwordInput.classList.add('is-invalid');
+        passwordInput.classList.remove('is-valid');
+        return false;
+    }
+}
+
