@@ -13,3 +13,6 @@ master/webapp.log
 master/static/holder.js
 *.code-workspace
 *.db
+database.ipynb
+deepface.ipynb
+webcam_demo.py
