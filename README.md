@@ -9,9 +9,9 @@ Face recognition system using edge computing on Raspberry Pi and a remote server
 
 ## Screenshots
 ### Assembly
-![](imgs/Picture2.jpg)
+![](imgs/Picture2.png)
 ### Web App
-![](imgs/Picture5.jpg)
+![](imgs/Picture5.png)
 ![](imgs/Picture6.png)
 ![](imgs/Picture7.png)
 ### Thermal Image Processing
